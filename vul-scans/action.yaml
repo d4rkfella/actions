@@ -330,8 +330,7 @@ runs:
         EOF
         
         export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
-        echo $GITHUB_WORKFLOW_REF
-        echo "Constructed certificate identity: https://github.com/${{ github.workflow_ref }}"
+        
         cosign verify-attestation --rekor-url ${{ inputs.REKOR_URL }} \
-          --type vuln --policy vulnz.cue ${{ inputs.image }} --certificate-oidc-issuer "https://token.actions.githubusercontent.com" --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/${{ github.workflow }}@${{ github.ref }}" || \
+          --type vuln --policy vulnz.cue ${{ inputs.image }} --certificate-oidc-issuer "https://token.actions.githubusercontent.com" --certificate-identity "https://github.com/${{ github.workflow_ref }}" || \
           echo "WARNING: Could not verify attestation (is this a private image?)"
