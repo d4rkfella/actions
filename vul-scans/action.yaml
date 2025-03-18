@@ -332,5 +332,5 @@ runs:
         export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
         
         cosign verify-attestation --rekor-url ${{ inputs.REKOR_URL }} \
-          --type vuln --policy vulnz.cue ${{ inputs.image }} --certificate-identity "https://github.com/${{ github.repository }}" || \
+          --type vuln --policy vulnz.cue ${{ inputs.image }} --certificate-oidc-issuer "https://token.actions.githubusercontent.com" || \
           echo "WARNING: Could not verify attestation (is this a private image?)"
