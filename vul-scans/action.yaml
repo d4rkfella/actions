@@ -202,7 +202,6 @@ runs:
         exit-code: 0
         vuln-type: 'os,library'
         severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
-        offline-scan: 'true'
 
     - name: Cosign Attest trivy results
       if: inputs.RUN_TRIVY == 'true'
