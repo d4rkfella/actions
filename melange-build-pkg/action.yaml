@@ -85,7 +85,7 @@ inputs:
   pipeline-dir:
     description: |
       Directory used for pipelines
-    default: ''
+    default: ${{ github.workspace }}/pipelines
 
   git-commit:
     description: |
