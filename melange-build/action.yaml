@@ -20,7 +20,7 @@ inputs:
       The architectures to use.
     default: x86_64
 
-  sign-with-temporary-key:
+  sign-with-key:
     description: |
       Sign packages with a temporary key, useful for multi-stage
       pipelines.
@@ -111,7 +111,7 @@ runs:
         config: ${{ inputs.config }}
         multi-config: ${{ inputs.multi-config }}
         archs: ${{ inputs.archs }}
-        sign-with-key: ${{ inputs.sign-with-temporary-key }}
+        sign-with-key: ${{ inputs.sign-with-key }}
         signing-key-path: ${{ inputs.signing-key-path }}
         repository-path: ${{ inputs.repository-path }}
         repository-append: ${{ inputs.repository-append }}
