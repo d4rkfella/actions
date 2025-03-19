@@ -17,7 +17,7 @@ inputs:
   config-file-license:
     description: |
       License to use for the melange config itself.
-      default: Apache-2.0
+    default: Apache-2.0
 
   archs:
     description: |
