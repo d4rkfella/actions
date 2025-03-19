@@ -29,7 +29,7 @@ runs:
         sudo apt install -y libcap-dev meson ninja-build
         git clone https://github.com/containers/bubblewrap
         pushd bubblewrap
-        meson --prefix=/usr -Drequire_userns=true . output
+        meson setup --prefix=/usr -Drequire_userns=true . output
         cd output
         ninja
         sudo ninja install
