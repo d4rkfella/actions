@@ -95,4 +95,3 @@ runs:
         fi
 
         melange version
-        melange build --help
