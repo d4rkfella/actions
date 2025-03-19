@@ -14,6 +14,11 @@ inputs:
       Comma-separated list of config files to use for building package(s).
     default: ''
 
+  config-file-license:
+    description: |
+      License to use for the melange config itself.
+      default: Apache-2.0
+
   archs:
     description: |
       The architectures to use.
@@ -130,7 +135,7 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          sudo melange build $config --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
+          sudo melange build $config --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
         done
     - name: 'Fix local repository permissions'
       shell: bash
