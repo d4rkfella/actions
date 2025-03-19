@@ -15,6 +15,11 @@ inputs:
       Comma-separated list of config files to use for building package(s).
     default: ''
 
+  config-file-license:
+    description: |
+      License to use for the melange config itself.
+    default: Apache-2.0
+
   archs:
     description: |
       The architectures to use.
@@ -117,3 +122,4 @@ runs:
         pipeline-dir: ${{ inputs.pipeline-dir }}
         git-commit: ${{ inputs.git-commit }}
         git-repo-url: ${{ inputs.git-repo-url }}
+        config-file-license: ${{ inputs.config-file-license }}
