@@ -89,6 +89,12 @@ inputs:
     required: true
     default: 'latest-release'
 
+  build-date:
+    description: |
+      Date used for the timestamps of the files inside the image
+    required: false
+    default: ''
+
 runs:
   using: 'composite'
 
@@ -117,3 +123,4 @@ runs:
         pipeline-dir: ${{ inputs.pipeline-dir }}
         git-commit: ${{ inputs.git-commit }}
         git-repo-url: ${{ inputs.git-repo-url }}
+        build-date: ${{ inputs.build-date }}
