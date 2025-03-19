@@ -100,10 +100,6 @@ runs:
     - uses: d4rkfella/actions/setup-melange@main
       with:
         version: ${{ inputs.version }}
-    - uses: d4rkfella/actions/melange-keygen@main
-      if: ${{ inputs.sign-with-temporary-key }}
-      with:
-        signing-key-path: ${{ inputs.signing-key-path }}
     - uses: d4rkfella/actions/melange-build-pkg@main
       with:
         config: ${{ inputs.config }}
