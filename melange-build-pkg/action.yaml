@@ -62,11 +62,6 @@ inputs:
       Automatically update index when the package is built.
     default: false
 
-  build-date:
-    description: |
-      Date used for the timestamps of the files inside the image
-    default: ''
-
   empty-workspace:
     description: |
       Whether to use an empty workspace or not.
@@ -122,7 +117,6 @@ runs:
         [ -n '${{ inputs.pipeline-dir }}' ] && pipelinedirarg="--pipeline-dir=${{ inputs.pipeline-dir }}"
         [ -n '${{ inputs.git-commit }}' ] && gitcommitarg="--git-commit ${{ inputs.git-commit }}"
         [ -n '${{ inputs.git-repo-url }}' ] && gitrepoarg="--git-repo-url ${{ inputs.git-repo-url }}"
-        [ -n '${{ inputs.build-date }}' ] && builddatearg="--build-date ${{ inputs.build-date }}"
         ${{ inputs.empty-workspace }} && workspacearg="$workspacearg --empty-workspace"
         ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/${{ inputs.workdir }}"
         ${{ inputs.sign-with-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
@@ -136,7 +130,7 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          sudo melange build $config --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
+          sudo melange build $config --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
         done
     - name: 'Fix local repository permissions'
       shell: bash
