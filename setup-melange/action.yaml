@@ -21,7 +21,19 @@ runs:
     - name: 'Install dependencies'
       shell: bash
       run: |
-        sudo apt install -y build-essential git jq bubblewrap
+        sudo apt install -y build-essential git jq
+    - name: 'Install dependencies (bubblewrap)'
+      shell: bash
+      run: |
+        sudo apt install -y libcap-dev meson ninja-build
+        git clone https://github.com/containers/bubblewrap
+        pushd bubblewrap
+        meson --prefix=/usr -Drequire_userns=true . output
+        cd output
+        ninja
+        sudo ninja install
+        popd
+        rm -rf bubblewrap
     - name: 'Install melange'
       if:
       shell: bash
