@@ -65,7 +65,7 @@ inputs:
   update-index:
     description: |
       Automatically update index when the package is built.
-    default: false
+    default: true
 
   empty-workspace:
     description: |
