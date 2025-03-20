@@ -339,7 +339,7 @@ runs:
         GENERATOR_REPOSITORY: slsa-framework/slsa-github-generator
         GENERATOR_RELEASE_TAG: v2.0.0
         GENERATOR_RELEASE_BINARY: slsa-generator-container-linux-amd64
-        GENERATOR_RELEASE_BINARY_SHA256: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
+        GENERATOR_RELEASE_BINARY_SHA256: 5f293677eb3433328140c547232a760c0aa513a049c2d2f4557fefe686acdcf8
         GH_TOKEN: "${{ github.token }}"
         GITHUB_CONTEXT: "${{ toJSON(github) }}" # Needed by slsa-generator-container
       run: |
