@@ -342,26 +342,16 @@ runs:
         GENERATOR_RELEASE_BINARY_SHA256: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
         GH_TOKEN: "${{ github.token }}"
         GITHUB_CONTEXT: "${{ toJSON(github) }}" # Needed by slsa-generator-container
+        VARS_CONTEXT: > 
+          ${{ toJSON({
+            "version": github.ref_name,
+            "workflow": github.workflow,
+            "repository": github.repository,
+            "sha": github.sha
+          }) }}
       run: |
         set -x
-
-        VERSION=$(echo "$GITHUB_REF" | sed -E 's|refs/heads/||')
-
-        VARS_CONTEXT=$(jq -n \
-          --arg version "$VERSION" \
-          --arg workflow "$GITHUB_WORKFLOW" \
-          --arg repository "$GITHUB_REPOSITORY" \
-          --arg sha "$GITHUB_SHA" \
-          '{
-            version: $version,
-            workflow: $workflow,
-            repository: $repository,
-            sha: $sha
-          }')
-    
-        echo "VARS_CONTEXT=${VARS_CONTEXT}" >> $GITHUB_ENV
-        echo "Generated VARS_CONTEXT: ${VARS_CONTEXT}"
-        
+      
         # Fetch the generator
         gh release -R "${GENERATOR_REPOSITORY}" download "${GENERATOR_RELEASE_TAG}" -p "${GENERATOR_RELEASE_BINARY}"
         COMPUTED_HASH="$(sha256sum "${GENERATOR_RELEASE_BINARY}" | awk '{print $1}')"
