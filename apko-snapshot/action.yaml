@@ -341,7 +341,7 @@ runs:
         GENERATOR_RELEASE_BINARY: slsa-generator-container-linux-amd64
         GENERATOR_RELEASE_BINARY_SHA256: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
         GH_TOKEN: "${{ github.token }}"
-        GITHUB_CONTEXT: "${{ toJSON(github) }}" # Needed by slsa-generator-container
+        VARS_CONTEXT: "${{ toJSON(github) }}" # Needed by slsa-generator-container
       run: |
         set -x
         # Fetch the generator
