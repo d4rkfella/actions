@@ -335,7 +335,15 @@ runs:
       id: set-vars
       shell: bash
       run: |
-        echo vars=$(echo '{"repository": "${{ github.repository }}", "sha": "${{ github.sha }}"}' | toJSON)" >> $GITHUB_OUTPUT
+        vars=$(jq -n \
+          --arg repository "${{ github.repository }}" \
+          --arg sha "${{ github.sha }}" \
+          '{
+            repository: $repository,
+            sha: $sha
+          }')
+  
+        echo "vars=${vars}" >> $GITHUB_OUTPUT
     # See https://github.com/slsa-framework/slsa-github-generator/tree/main/internal/builders/container
     - name: 'SLSA: Generate provenance and attest'
       if: ${{ inputs.slsa-attest == 'true' }}
