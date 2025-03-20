@@ -342,8 +342,9 @@ runs:
             repository: $repository,
             sha: $sha
           }')
-  
+    
         echo "vars=${vars}" >> $GITHUB_OUTPUT
+
     # See https://github.com/slsa-framework/slsa-github-generator/tree/main/internal/builders/container
     - name: 'SLSA: Generate provenance and attest'
       if: ${{ inputs.slsa-attest == 'true' }}
