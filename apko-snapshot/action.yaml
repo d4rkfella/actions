@@ -330,21 +330,6 @@ runs:
         [[ "${{ steps.extract.outputs.digest-riscv64 }}" == "" ]] || attest_sbom "riscv64" "${{ steps.extract.outputs.digest-riscv64 }}" "sbom-riscv64.spdx.json"
         [[ "${{ steps.extract.outputs.digest-s390x }}" == "" ]] || attest_sbom "s390x" "${{ steps.extract.outputs.digest-s390x }}" "sbom-s390x.spdx.json"
 
-    - name: Set vars context
-      if: ${{ inputs.slsa-attest == 'true' }}
-      id: set-vars
-      shell: bash
-      run: |
-        vars=$(jq -n \
-          --arg repository "${{ github.repository }}" \
-          --arg sha "${{ github.sha }}" \
-          '{
-            repository: $repository,
-            sha: $sha
-          }')
-    
-        echo "vars=${vars}" >> $GITHUB_OUTPUT
-
     # See https://github.com/slsa-framework/slsa-github-generator/tree/main/internal/builders/container
     - name: 'SLSA: Generate provenance and attest'
       if: ${{ inputs.slsa-attest == 'true' }}
@@ -357,7 +342,7 @@ runs:
         GENERATOR_RELEASE_BINARY_SHA256: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
         GH_TOKEN: "${{ github.token }}"
         GITHUB_CONTEXT: "${{ toJSON(github) }}" # Needed by slsa-generator-container
-        VARS_CONTEXT: "${{ steps.set-vars.outputs.vars }}"
+        VARS_CONTEXT: ${{ toJSON(vars) }}
       run: |
         set -x
       
