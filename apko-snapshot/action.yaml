@@ -337,7 +337,7 @@ runs:
       env:
         COSIGN_EXPERIMENTAL: "true"
         GENERATOR_REPOSITORY: slsa-framework/slsa-github-generator
-        GENERATOR_RELEASE_TAG: v1.5.0
+        GENERATOR_RELEASE_TAG: v2.1.0
         GENERATOR_RELEASE_BINARY: slsa-generator-container-linux-amd64
         GENERATOR_RELEASE_BINARY_SHA256: 6d8b83327ac2134aa8760e1e4f9cd5d3fdbcb56599e39be2cd965f1e04aa8ede
         GH_TOKEN: "${{ github.token }}"
