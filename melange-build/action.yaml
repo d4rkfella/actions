@@ -127,25 +127,26 @@ runs:
   using: 'composite'
 
   steps:
-    - name: 'Install qemu emulator binaries'
-      shell: bash
-      run: |
-        sudo apt update && sudo apt install -y qemu-user-static
-    - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+    - name: Setup Qemu Action
+      uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # 3.6.0
+    
+    - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
         go-version: '1.23.4'
         check-latest: true
+    
     - name: 'Install dependencies'
       shell: bash
       run: |
         sudo apt install -y build-essential git jq
+    
     - name: 'Install dependencies (bubblewrap)'
       shell: bash
       run: |
         sudo apt install -y libcap-dev meson ninja-build
         git clone https://github.com/containers/bubblewrap
         pushd bubblewrap
-        meson --prefix=/usr -Drequire_userns=true . output
+        meson setup --prefix=/usr -Drequire_userns=true . output
         cd output
         ninja
         sudo ninja install
