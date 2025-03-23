@@ -132,6 +132,7 @@ runs:
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
           melange build $config --runner docker --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
+          melange test $config --runner docker --arch ${{ inputs.archs }} --pipeline-dirs ${{ inputs.pipeline-dir }} $workspacearg $repoarg $keyringarg
         done
     - name: 'Fix local repository permissions'
       shell: bash
