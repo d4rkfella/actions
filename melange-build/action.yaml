@@ -169,7 +169,7 @@ runs:
       run: |
         melange keygen "${{ inputs.signing-key-path }}"
 
-    - name: Save private key
+    - name: Set signing key
       if: ${{ inputs.sign-with-key == 'true' && inputs.signing-key-path != '' }}
       shell: bash
       run: |
@@ -178,7 +178,7 @@ runs:
         chmod 400 "${{ inputs.signing-key-path }}"
         set -x
 
-    - name: 'Build package with Melange'
+    - name: 'Build packages'
       shell: bash
       run: |
         [ -n "${{ inputs.workdir }}" ] && cd "${{ inputs.workdir }}"
