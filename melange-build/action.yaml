@@ -279,7 +279,7 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          sudo melange build "$config" --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
+          sudo melange build "$config" --generate-index=false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
         done
         if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
           echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging."
