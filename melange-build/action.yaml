@@ -237,7 +237,7 @@ runs:
         if aws s3 ls s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz --endpoint-url=$ENDPOINT_URL > /dev/null 2>&1; then
             echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging"
             aws s3 cp s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz /tmp/APKINDEX.tar.gz --endpoint-url=$ENDPOINT_URL
-            melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}/*.apk" --source /tmp/APKINDEX.tar.gz --merge     
+            melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" ${{ inputs.repository-path }}/${{ inputs.archs }}/*.apk --source /tmp/APKINDEX.tar.gz --merge     
         fi
         
-        aws s3 cp --recursive "${{ inputs.repository-path }}/" s3://"${{ inputs.s3-bucket-name }}"/ --endpoint-url $ENDPOINT_URL --checksum-algorithm CRC32
+        aws s3 cp --recursive ${{ inputs.repository-path }}/ s3://${{ inputs.s3-bucket-name }}/ --endpoint-url $ENDPOINT_URL --checksum-algorithm CRC32
