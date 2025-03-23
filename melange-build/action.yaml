@@ -22,7 +22,7 @@ inputs:
   archs:
     description: |
       The architectures to use.
-    default: x86_64
+    default: amd64
 
   sign-with-key:
     description: |
