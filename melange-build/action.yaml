@@ -4,6 +4,11 @@ description: |
   the Melange repository is already configured.
 
 inputs:
+  version:
+    description: 'Version of melange to install (tip, latest-release, v0.5.5, etc.)'
+    required: true
+    default: 'latest-release'
+  
   config:
     description: |
       The config file to use for building the package.
