@@ -106,10 +106,6 @@ runs:
   using: 'composite'
 
   steps:
-    - if: inputs.template != ''
-      shell: bash
-      run: |
-        echo "Warning: the --template flag has been removed from melange and will be ignored."
     - name: 'Build package with Melange'
       shell: bash
       run: |
