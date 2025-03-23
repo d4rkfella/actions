@@ -122,13 +122,91 @@ runs:
   using: 'composite'
 
   steps:
-    - name: Set up Homebrew
-      uses: Homebrew/actions/setup-homebrew@master
-
-    - name: Install Melange
+    - name: 'Install qemu emulator binaries'
       shell: bash
       run: |
-        brew install melange
+        sudo apt update && sudo apt install -y qemu-user-static
+    - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      with:
+        go-version: '1.23.4'
+        check-latest: true
+    - name: 'Install dependencies'
+      shell: bash
+      run: |
+        sudo apt install -y build-essential git jq
+    - name: 'Install dependencies (bubblewrap)'
+      shell: bash
+      run: |
+        sudo apt install -y libcap-dev meson ninja-build
+        git clone https://github.com/containers/bubblewrap
+        pushd bubblewrap
+        meson --prefix=/usr -Drequire_userns=true . output
+        cd output
+        ninja
+        sudo ninja install
+        popd
+        rm -rf bubblewrap
+
+    - name: 'Install melange'
+      if:
+      shell: bash
+      run: |
+        set -ex
+
+        # Install melange:
+        # - if version is "tip", install from tip of main.
+        # - if version is "latest-release", look up latest release.
+        # - otherwise, install the specified version.
+        case ${{ inputs.version }} in
+        tip)
+          TMP_CLONE_DIR="$(mktemp -d)"
+          git clone https://github.com/chainguard-dev/melange "${TMP_CLONE_DIR}"
+          pushd "${TMP_CLONE_DIR}"
+          make melange
+          sudo env "PATH=$PATH" make install
+          popd
+          rm -rf "${TMP_CLONE_DIR}"
+          ;;
+        latest-release)
+          # fetch the latest 20 releases, we need to filter by the ones that have assets.
+          releases=$(curl -s -u "username:${{ github.token }}" https://api.github.com/repos/chainguard-dev/melange/releases?per_page=20)
+
+          # search for the first release that has assets.
+          tag=$(echo $releases | jq -r 'first(.[] | select(.assets | length > 0) | .tag_name)')
+          if [[ -z ${tag} ]]; then
+            # this should, ideally, never happen.
+            echo "No melange release with assets found"
+            exit 1
+          fi
+          ;;
+        *)
+          tag="${{ inputs.version }}"
+        esac
+
+        if [[ ! -z ${tag} ]]; then
+          case "$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" in
+          x86|x64) ARCH=amd64;;
+          arm64)   ARCH=arm64;;
+          *)
+            echo Unsupported RUNNER_ARCH \"$RUNNER_ARCH\"
+            exit -1
+            ;;
+          esac
+          case "$(echo $RUNNER_OS | awk '{print tolower($0)}')" in
+          "linux") OS=linux;;
+          "macos") OS=osx;;
+          *)
+            echo Unsupported RUNNER_OS \"$RUNNER_OS\"
+            exit -1
+            ;;
+          esac
+
+          without_v=${tag#"v"}
+          echo "Installing melange @ ${tag}"
+          curl -fsL https://github.com/chainguard-dev/melange/releases/download/${tag}/melange_${without_v}_${OS}_${ARCH}.tar.gz | sudo tar xzf - --strip-components=1 -C /usr/local/bin
+        fi
+
+        melange version
 
     - name: Validate inputs
       shell: bash
@@ -195,7 +273,7 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          melange build "$config" --runner docker --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
+          sudo melange build "$config" --runner docker --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
         done
         if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
           echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging."
@@ -229,7 +307,7 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          melange test "$config" --runner docker --arch "${{ inputs.archs }}" $workspacearg $pipelinedirarg $repoarg $keyringarg
+          sudo melange test "$config" --runner docker --arch "${{ inputs.archs }}" $workspacearg $pipelinedirarg $repoarg $keyringarg
         done
 
     - name: 'Copy packages to s3 bucket'
