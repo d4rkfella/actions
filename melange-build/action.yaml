@@ -22,7 +22,13 @@ inputs:
   archs:
     description: |
       The architectures to use.
-    default: amd64
+    default: x86_64
+
+  sign-with-temporary-key:
+    description: |
+      Sign packages with a temporary key, useful for multi-stage
+      pipelines.
+    default: false
 
   sign-with-key:
     description: |
@@ -32,8 +38,8 @@ inputs:
 
   signing-key-path:
     description: |
-      The path for the temporary key if signing is enabled.
-    default: ${{ github.workspace }}/melange.rsa
+      The path for the signing key if signing is enabled.
+    default: ''
 
   repository-path:
     description: |
@@ -89,6 +95,9 @@ inputs:
       Switch to this directory prior to running build
     default: ''
 
+  s3-bucket-name:
+    required: true
+
   cache-dir:
     description: |
       Directory used for cached inputs
@@ -113,6 +122,33 @@ runs:
   using: 'composite'
 
   steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ "${{ inputs.sign-with-key }}" == "true" && "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
+          echo "Error: Both 'sign-with-key' and 'sign-with-temporary-key' cannot be enabled at the same time."
+          exit 1
+        fi
+        if [[ ("${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true") && -z "${{ inputs.signing-key-path }}" ]]; then
+            echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
+            exit 1
+          fi
+    
+    - name: Generate temporary signing key
+      if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
+      shell: bash
+      run: |
+        melange keygen "${{ inputs.signing-key-path }}"
+    
+    - name: Save private key
+      if: ${{ inputs.sign-with-key == 'true' && inputs.signing-key-path != '' }}
+      shell: bash
+      run: |
+        set +x
+        echo -n "$MELANGE_PRIVATE_KEY" > "${{ inputs.signing-key-path }}"
+        chmod 400 "${{ inputs.signing-key-path }}"
+        set -x
+    
     - name: 'Build package with Melange'
       shell: bash
       run: |
@@ -125,10 +161,10 @@ runs:
         [ -n '${{ inputs.pipeline-dir }}' ] && pipelinedirarg="--pipeline-dir=${{ inputs.pipeline-dir }}"
         [ -n '${{ inputs.git-commit }}' ] && gitcommitarg="--git-commit ${{ inputs.git-commit }}"
         [ -n '${{ inputs.git-repo-url }}' ] && gitrepoarg="--git-repo-url ${{ inputs.git-repo-url }}"
+        [ -n '${{ inputs.build-date }}' ] && builddatearg="--build-date=${{ inputs.build-date }}"
         ${{ inputs.empty-workspace }} && workspacearg="$workspacearg --empty-workspace"
         ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/${{ inputs.workdir }}"
-        ${{ inputs.sign-with-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
-        ${{ inputs.update-index }} || indexarg="--generate-index=false"
+        ${{ inputs.sign-with-key || inputs.sign-with-temporary-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
         melangeconfigs="${{ inputs.multi-config }}"
         [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
         for config in ${melangeconfigs//,/ }; do
@@ -138,9 +174,9 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          melange build $config --runner docker --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
-          melange index $signarg --output ${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz ${{ inputs.repository-path }}/${{ inputs.archs }}/*.apk
+          melange build $config --runner docker --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
         done
+        melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}/*.apk"
     - name: 'Fix local repository permissions'
       shell: bash
       run: |
@@ -149,8 +185,8 @@ runs:
       shell: bash
       run: |
         [ -n '${{ inputs.workdir }}' ] && cd "${{ inputs.workdir }}"
-        [ -n '${{ inputs.tests-repository-append }}' ] && repoarg="--repository-append ${{ inputs.repository-append }}"
-        [ -n '${{ inputs.tests-keyring-append }}' ] && keyringarg="--keyring-append ${{ inputs.keyring-append }}"
+        [ -n '${{ inputs.tests-repository-append }}' ] && repoarg="--repository-append ${{ inputs.tests-repository-append }}"
+        [ -n '${{ inputs.tests-keyring-append }}' ] && keyringarg="--keyring-append ${{ inputs.tests-keyring-append }}"
         [ -n '${{ inputs.workspace-dir }}' ] && workspacearg="--workspace-dir ${{ inputs.workspace-dir }}"
         [ -n '${{ inputs.cache-dir }}' ] && cachearg="--cache-dir=${{ inputs.cache-dir }}"
         [ -n '${{ inputs.pipeline-dir }}' ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
@@ -165,5 +201,32 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          melange test $config --runner docker --arch ${{ inputs.archs }} $workspacearg $pipelinedirarg $repoarg $keyringarg
+          melange test $config --runner docker --arch "${{ inputs.archs }}" $workspacearg $pipelinedirarg $repoarg $keyringarg
         done
+    - name: 'Merge Index if one already exists and copy packages to s3 bucket'
+      shell: bash
+      run: |
+        ${{ inputs.sign-with-key || inputs.sign-with-temporary-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
+        
+        if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "Error: AWS_ACCESS_KEY_ID is not set."
+            exit 1
+        fi
+
+        if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+          echo "Error: AWS_SECRET_ACCESS_KEY is not set."
+          exit 1
+        fi
+
+        if [ -z "$ENDPOINT_URL" ]; then
+          echo "Error: ENDPOINT_URL is not set."
+          exit 1
+        fi
+        
+        if aws s3 ls s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz --endpoint-url=$ENDPOINT_URL > /dev/null 2>&1; then
+            echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging"
+            aws s3 cp s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz /tmp/APKINDEX.tar.gz --endpoint-url=$ENDPOINT_URL
+            melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}/*.apk" --source /tmp/APKINDEX.tar.gz --merge     
+        fi
+        
+        aws s3 cp --recursive "${{ inputs.repository-path }}/" s3://"${{ inputs.s3-bucket-name }}"/ --endpoint-url $ENDPOINT_URL --checksum-algorithm CRC32
