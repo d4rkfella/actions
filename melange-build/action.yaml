@@ -186,7 +186,7 @@ runs:
         [ -n "${{ inputs.git-repo-url }}" ] && gitrepoarg="--git-repo-url ${{ inputs.git-repo-url }}"
         [ -n "${{ inputs.build-date }}" ] && builddatearg="--build-date=${{ inputs.build-date }}"
         ${{ inputs.empty-workspace }} && workspacearg="$workspacearg --empty-workspace"
-        ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/$(basename $(dirname "${{ inputs.config }}"))" && cd "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")"
+        ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")" && cd "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")"
         ${{ inputs.sign-with-key || inputs.sign-with-temporary-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
         melangeconfigs="${{ inputs.multi-config }}"
         [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
@@ -221,7 +221,7 @@ runs:
         [ -n "${{ inputs.cache-dir }}" ] && cachearg="--cache-dir=${{ inputs.cache-dir }}"
         [ -n "${{ inputs.pipeline-dir }}" ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
         ${{ inputs.empty-workspace }} && workspacearg="$workspacearg --empty-workspace"
-        ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/$(basename $(dirname "${{ inputs.config }}"))" && cd "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")"
+        ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")" && cd "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")"
         melangeconfigs="${{ inputs.multi-config }}"
         [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
         for config in ${melangeconfigs//,/ }; do
