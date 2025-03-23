@@ -122,6 +122,14 @@ runs:
   using: 'composite'
 
   steps:
+    - name: Set up Homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+        
+    - name: Install Melange
+      shell: bash
+      run: |
+        brew install melange
+    
     - name: Validate inputs
       shell: bash
       run: |
