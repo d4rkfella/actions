@@ -135,7 +135,7 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          /home/linuxbrew/.linuxbrew/bin/melange build $config --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
+          sudo /home/linuxbrew/.linuxbrew/bin/melange build $config --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
         done
     - name: 'Fix local repository permissions'
       shell: bash
