@@ -118,6 +118,9 @@ inputs:
       URL of the git repository containing the build config file
     default: ''
 
+  build-date:
+    default: ''
+
 runs:
   using: 'composite'
 
