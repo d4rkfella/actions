@@ -40,12 +40,24 @@ inputs:
       The path of the repository being constructed by Melange.
     default: ${{ github.workspace }}/packages
 
+  tests-repository-append:
+    description: |
+      A list of paths or URIs of repositories that should be
+      implicitly included in the test environment.
+    default: ''
+
   repository-append:
     description: |
       A list of paths or URIs of repositories that should be
       implicitly included in the build environment.
     default: ''
 
+  tests-keyring-append:
+    description: |
+      A list of paths or URIs of keys that should be included
+      in the test environment.
+    default: ''
+  
   keyring-append:
     description: |
       A list of paths or URIs of keys that should be included
@@ -61,11 +73,6 @@ inputs:
     description: |
       Namespace string to use in SBOM purls identifying built packages (eg wolfi, alpine)
     default: ''
-
-  update-index:
-    description: |
-      Automatically update index when the package is built.
-    default: true
 
   empty-workspace:
     description: |
@@ -131,9 +138,32 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          melange build $config --runner docker --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $indexarg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
+          melange build $config --runner docker --license ${{ inputs.config-file-license }} --build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") --arch ${{ inputs.archs }} --out-dir ${{ inputs.repository-path }} $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg
+          melange index $signarg --output ${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz ${{ inputs.repository-path }}/${{ inputs.archs }}/*.apk
         done
     - name: 'Fix local repository permissions'
       shell: bash
       run: |
         sudo chown -R runner:runner ${{ inputs.repository-path }}
+    - name: 'Test packages'
+      shell: bash
+      run: |
+        [ -n '${{ inputs.workdir }}' ] && cd "${{ inputs.workdir }}"
+        [ -n '${{ inputs.tests-repository-append }}' ] && repoarg="--repository-append ${{ inputs.repository-append }}"
+        [ -n '${{ inputs.tests-keyring-append }}' ] && keyringarg="--keyring-append ${{ inputs.keyring-append }}"
+        [ -n '${{ inputs.workspace-dir }}' ] && workspacearg="--workspace-dir ${{ inputs.workspace-dir }}"
+        [ -n '${{ inputs.cache-dir }}' ] && cachearg="--cache-dir=${{ inputs.cache-dir }}"
+        [ -n '${{ inputs.pipeline-dir }}' ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
+        ${{ inputs.empty-workspace }} && workspacearg="$workspacearg --empty-workspace"
+        ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/${{ inputs.workdir }}"
+        melangeconfigs="${{ inputs.multi-config }}"
+        [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
+        for config in ${melangeconfigs//,/ }; do
+          # If we have already built one melange package, and the packages/ dir exists,
+          # add this as an additional local repository that other packages can depend on
+          if [[ -d "${{ inputs.repository-path }}" ]]; then
+            repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
+            keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
+          fi
+          melange test $config --runner docker --arch ${{ inputs.archs }} $workspacearg $pipelinedirarg $repoarg $keyringarg
+        done
