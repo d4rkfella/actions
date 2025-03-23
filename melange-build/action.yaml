@@ -140,10 +140,26 @@ runs:
           echo "Error: Both 'sign-with-key' and 'sign-with-temporary-key' cannot be enabled at the same time."
           exit 1
         fi
+        
         if [[ ("${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true") && -z "${{ inputs.signing-key-path }}" ]]; then
             echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
             exit 1
-          fi
+        fi
+
+        if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "Error: AWS_ACCESS_KEY_ID is not set."
+            exit 1
+        fi
+
+        if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+          echo "Error: AWS_SECRET_ACCESS_KEY is not set."
+          exit 1
+        fi
+
+        if [ -z "$ENDPOINT_URL" ]; then
+          echo "Error: ENDPOINT_URL is not set."
+          exit 1
+        fi
     
     - name: Generate temporary signing key
       if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
@@ -218,22 +234,7 @@ runs:
       shell: bash
       run: |
         ${{ inputs.sign-with-key || inputs.sign-with-temporary-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
-        
-        if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-            echo "Error: AWS_ACCESS_KEY_ID is not set."
-            exit 1
-        fi
-
-        if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-          echo "Error: AWS_SECRET_ACCESS_KEY is not set."
-          exit 1
-        fi
-
-        if [ -z "$ENDPOINT_URL" ]; then
-          echo "Error: ENDPOINT_URL is not set."
-          exit 1
-        fi
-        
+                
         if aws s3 ls s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz --endpoint-url=$ENDPOINT_URL > /dev/null 2>&1; then
             echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging"
             aws s3 cp s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz /tmp/APKINDEX.tar.gz --endpoint-url=$ENDPOINT_URL
