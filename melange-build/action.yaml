@@ -274,6 +274,7 @@ runs:
         ${{ inputs.sign-with-key || inputs.sign-with-temporary-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
         melangeconfigs="${{ inputs.multi-config }}"
         [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
+        
         for config in ${melangeconfigs//,/ }; do
           if [[ -d "${{ inputs.repository-path }}" ]]; then
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
@@ -281,6 +282,9 @@ runs:
           fi
           sudo melange build "$config" --generate-index=false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
         done
+        
+        sudo chown -R runner:runner "${{ inputs.repository-path }}"
+        
         if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
           echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging."
           aws s3 cp "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" /tmp/APKINDEX.tar.gz --endpoint-url="$ENDPOINT_URL"
@@ -289,11 +293,6 @@ runs:
           echo "APKINDEX.tar.gz not found in S3 bucket. Creating a new index."
           melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
         fi
-
-    - name: 'Fix local repository permissions'
-      shell: bash
-      run: |
-        sudo chown -R runner:runner "${{ inputs.repository-path }}"
 
     - name: 'Test packages'
       shell: bash
@@ -308,6 +307,7 @@ runs:
         ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")"
         melangeconfigs="${{ inputs.multi-config }}"
         [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
+        
         for config in ${melangeconfigs//,/ }; do
           if [[ -d "${{ inputs.repository-path }}" ]]; then
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
