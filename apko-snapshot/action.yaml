@@ -221,12 +221,6 @@ runs:
       shell: bash
       run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin -v
 
-    - name: Generate snapshot date
-      id: snapshot-date
-      run: |
-        echo date=$(date -u +%Y%m%d) >> $GITHUB_OUTPUT
-      shell: bash
-
     # Only publish the versioned tag to start.  After we have signed and
     # attested things, then we use crane to update :latest below.
     - uses: d4rkfella/actions/apko-publish@main
@@ -235,7 +229,7 @@ runs:
         apko-image: ${{ inputs.apko-image }}
         config: ${{ inputs.config }}
         lockfile: ${{ inputs.lockfile }}
-        tag: ${{ inputs.base-tag }}:${{ inputs.target-tag }}-${{ steps.snapshot-date.outputs.date }}
+        tag: ${{ inputs.base-tag }}:${{ inputs.target-tag }}
         image_refs: ${{ inputs.image_refs }}
         keyring-append: ${{ inputs.keyring-append }}
         build-repository-append: ${{ inputs.build-repository-append }}
