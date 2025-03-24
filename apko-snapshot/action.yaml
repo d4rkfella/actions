@@ -229,7 +229,7 @@ runs:
 
     # Only publish the versioned tag to start.  After we have signed and
     # attested things, then we use crane to update :latest below.
-    - uses: chainguard-images/actions/apko-publish@main
+    - uses: d4rkfella/actions/apko-publish@main
       id: apko
       with:
         apko-image: ${{ inputs.apko-image }}
@@ -246,7 +246,6 @@ runs:
         automount-src: ${{ inputs.automount-src }}
         automount-dest: ${{ inputs.automount-dest }}
         build-options: ${{ inputs.build-options }}
-        sbom-path: ${{ steps.apko-publish-inputs.outputs.sbom-path }}
         generic-user: ${{ inputs.generic-user }}
         generic-pass: ${{ inputs.generic-pass }}
         annotations: ${{ inputs.annotations }}
@@ -304,17 +303,8 @@ runs:
           arch="${1}"
           digest="${2}"
           sbomfile="${3}"
-          if [[ "${sbomfile}" == "" ]]; then
-            echo "Unknown architecture: ${arch}. Exiting."
-            exit 1
-          fi
-          if [[ ! -f "${sbomfile}" ]]; then
-            echo "Unable to find SBOM on disk: ${sbomfile} (arch: ${arch}). Exiting."
-            exit 1
-          fi
           echo "Attaching ${sbomfile} to ${digest} as spdxjson attestation (arch: ${arch}) ..."
-          cosign attest --yes --type spdxjson --predicate "${sbomfile}" "${digest}"
-          rm -f "${sbomfile}"
+          echo syft "${digest}" -o spdx-json | cosign attest --yes --type spdxjson --predicate - "${digest}"
         }
 
         # First attest the index SBOM
