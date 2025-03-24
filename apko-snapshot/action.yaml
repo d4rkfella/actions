@@ -35,7 +35,7 @@ inputs:
     description: |
       The tag this build will produce upon success.  It will also be used
       to form a date-based variant for tracking over time.
-    default: latest
+    default: rolling
     required: true
 
   registry:
