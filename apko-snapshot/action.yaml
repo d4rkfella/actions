@@ -220,13 +220,6 @@ runs:
         echo date=$(date -u +%Y%m%d) >> $GITHUB_OUTPUT
       shell: bash
 
-    - name: Generate dynamic inputs for apko-publish
-      shell: bash
-      id: apko-publish-inputs
-      run: |
-        # If sbom-attest enabled, write SBOMs to working directory to attest later
-        echo "sbom-path=${{ inputs.sbom-attest && '.' || ''}}" >> $GITHUB_OUTPUT
-
     # Only publish the versioned tag to start.  After we have signed and
     # attested things, then we use crane to update :latest below.
     - uses: d4rkfella/actions/apko-publish@main
