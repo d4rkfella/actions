@@ -297,7 +297,7 @@ runs:
           digest="${2}"
           sbomfile="${3}"
           echo "Attaching ${sbomfile} to ${digest} as spdxjson attestation (arch: ${arch}) ..."
-          echo syft "${digest}" -o spdx-json | cosign attest --yes --type spdxjson --predicate - "${digest}"
+          syft "${digest}" -o spdx-json | cosign attest --yes --type spdxjson --predicate - "${digest}"
         }
 
         # First attest the index SBOM
