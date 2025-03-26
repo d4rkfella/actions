@@ -298,7 +298,6 @@ runs:
     - name: 'Test packages'
       shell: bash
       run: |
-        [ -n "${{ inputs.workdir }}" ] && cd "${{ inputs.workdir }}"
         [ -n "${{ inputs.tests-repository-append }}" ] && repoarg="--repository-append ${{ inputs.tests-repository-append }}"
         [ -n "${{ inputs.tests-keyring-append }}" ] && keyringarg="--keyring-append ${{ inputs.tests-keyring-append }}"
         [ -n "${{ inputs.workspace-dir }}" ] && workspacearg="--workspace-dir ${{ inputs.workspace-dir }}"
