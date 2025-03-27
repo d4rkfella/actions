@@ -298,8 +298,12 @@ runs:
     - name: 'Test packages'
       shell: bash
       run: |
+        echo "DEBUG: tests-repository-append = ${{ inputs.tests-repository-append }}"
+        echo "DEBUG: tests-keyring-append = ${{ inputs.tests-keyring-append }}"
         [ -n "${{ inputs.tests-repository-append }}" ] && repoarg="--repository-append ${{ inputs.tests-repository-append }}"
         [ -n "${{ inputs.tests-keyring-append }}" ] && keyringarg="--keyring-append ${{ inputs.tests-keyring-append }}"
+        echo "DEBUG: repoarg = $repoarg"
+        echo "DEBUG: keyringarg = $keyringarg"
         [ -n "${{ inputs.workspace-dir }}" ] && workspacearg="--workspace-dir ${{ inputs.workspace-dir }}"
         [ -n "${{ inputs.cache-dir }}" ] && cachearg="--cache-dir=${{ inputs.cache-dir }}"
         [ -n "${{ inputs.pipeline-dir }}" ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
