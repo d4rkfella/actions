@@ -281,21 +281,12 @@ runs:
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
           fi
-          sudo melange build "$config" --generate-index=false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
+          sudo melange build "$config" --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}" $signarg $repoarg $keyringarg $workspacearg $nsarg $cachearg $pipelinedirarg $gitcommitarg $gitrepoarg $builddatearg
         done
         
         sudo chown -R runner:runner "${{ inputs.repository-path }}"
-        
-        if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
-          echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging."
-          aws s3 cp "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" /tmp/APKINDEX.tar.gz --endpoint-url="$ENDPOINT_URL"
-          melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk --source /tmp/APKINDEX.tar.gz --merge
-        else
-          echo "APKINDEX.tar.gz not found in S3 bucket. Creating a new index."
-          melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
-        fi
-
-    - name: 'Test packages'
+    
+    - name: 'Test packages and merge Index'
       shell: bash
       run: |
         echo "DEBUG: tests-repository-append = ${{ inputs.tests-repository-append }}"
@@ -307,6 +298,7 @@ runs:
         [ -n "${{ inputs.pipeline-dir }}" ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
         ${{ inputs.empty-workspace }} && workspacearg="$workspacearg --empty-workspace"
         ${{ inputs.empty-workspace }} || workspacearg="$workspacearg --source-dir ${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")"
+        ${{ inputs.sign-with-key || inputs.sign-with-temporary-key }} && signarg="--signing-key ${{ inputs.signing-key-path }}"
         melangeconfigs="${{ inputs.multi-config }}"
         [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
         
@@ -319,8 +311,16 @@ runs:
           fi
           sudo melange test "$config" --arch "${{ inputs.archs }}" $repoarg $keyringarg $workspacearg $pipelinedirarg
         done
+        if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
+          echo "APKINDEX.tar.gz found in S3 bucket. Downloading index and merging."
+          aws s3 cp "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" /tmp/APKINDEX.tar.gz --endpoint-url="$ENDPOINT_URL"
+          melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk --source /tmp/APKINDEX.tar.gz --merge
+        else
+          echo "APKINDEX.tar.gz not found in S3 bucket. Creating a new index."
+          melange index $signarg --output "${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
+        fi
 
-    - name: 'Copy packages to s3 bucket'
+    - name: 'Copy files to s3'
       shell: bash
       run: |
         aws s3 cp --recursive "${{ inputs.repository-path }}/" "s3://${{ inputs.s3-bucket-name }}/" --endpoint-url "$ENDPOINT_URL" --checksum-algorithm CRC32
