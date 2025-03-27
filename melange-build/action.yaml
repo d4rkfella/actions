@@ -302,8 +302,6 @@ runs:
         echo "DEBUG: tests-keyring-append = ${{ inputs.tests-keyring-append }}"
         [ -n "${{ inputs.tests-repository-append }}" ] && repoarg="--repository-append ${{ inputs.tests-repository-append }}"
         [ -n "${{ inputs.tests-keyring-append }}" ] && keyringarg="--keyring-append ${{ inputs.tests-keyring-append }}"
-        echo "DEBUG: repoarg = $repoarg"
-        echo "DEBUG: keyringarg = $keyringarg"
         [ -n "${{ inputs.workspace-dir }}" ] && workspacearg="--workspace-dir ${{ inputs.workspace-dir }}"
         [ -n "${{ inputs.cache-dir }}" ] && cachearg="--cache-dir=${{ inputs.cache-dir }}"
         [ -n "${{ inputs.pipeline-dir }}" ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
@@ -316,6 +314,8 @@ runs:
           if [[ -d "${{ inputs.repository-path }}" ]]; then
             repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
             keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
+            echo "DEBUG: repoarg = $repoarg"
+            echo "DEBUG: keyringarg = $keyringarg"
           fi
           sudo melange test "$config" --arch "${{ inputs.archs }}" $workspacearg $pipelinedirarg $repoarg $keyringarg
         done
