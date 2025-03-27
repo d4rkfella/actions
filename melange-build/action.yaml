@@ -317,7 +317,7 @@ runs:
             echo "DEBUG: repoarg = $repoarg"
             echo "DEBUG: keyringarg = $keyringarg"
           fi
-          sudo melange test "$config" --arch "${{ inputs.archs }}" $workspacearg $pipelinedirarg $repoarg $keyringarg
+          sudo melange test --arch "${{ inputs.archs }}" "$workspacearg" "$pipelinedirarg" "$repoarg" "$keyringarg" "$config"
         done
 
     - name: 'Copy packages to s3 bucket'
