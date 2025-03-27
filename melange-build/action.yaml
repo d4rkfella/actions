@@ -300,8 +300,8 @@ runs:
       run: |
         echo "DEBUG: tests-repository-append = ${{ inputs.tests-repository-append }}"
         echo "DEBUG: tests-keyring-append = ${{ inputs.tests-keyring-append }}"
-        [ -n "${{ inputs.tests-repository-append }}" ] && repoarg="--repository-append ${{ inputs.tests-repository-append }}"
-        [ -n "${{ inputs.tests-keyring-append }}" ] && keyringarg="--keyring-append ${{ inputs.tests-keyring-append }}"
+        [ -n "${{ inputs.tests-repository-append }}" ] && repoarg="--repository-append=${{ inputs.tests-repository-append }}"
+        [ -n "${{ inputs.tests-keyring-append }}" ] && keyringarg="--keyring-append=${{ inputs.tests-keyring-append }}"
         [ -n "${{ inputs.workspace-dir }}" ] && workspacearg="--workspace-dir ${{ inputs.workspace-dir }}"
         [ -n "${{ inputs.cache-dir }}" ] && cachearg="--cache-dir=${{ inputs.cache-dir }}"
         [ -n "${{ inputs.pipeline-dir }}" ] && pipelinedirarg="--pipeline-dirs=${{ inputs.pipeline-dir }}"
@@ -312,8 +312,8 @@ runs:
         
         for config in ${melangeconfigs//,/ }; do
           if [[ -d "${{ inputs.repository-path }}" ]]; then
-            repoarg="${repoarg} --repository-append ${{ inputs.repository-path }}"
-            keyringarg="${keyringarg} --keyring-append ${{ inputs.signing-key-path }}.pub"
+            repoarg="${repoarg} --repository-append=${{ inputs.repository-path }}"
+            keyringarg="${keyringarg} --keyring-append=${{ inputs.signing-key-path }}.pub"
             echo "DEBUG: repoarg = $repoarg"
             echo "DEBUG: keyringarg = $keyringarg"
           fi
