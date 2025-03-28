@@ -104,6 +104,18 @@ runs:
         git config --global commit.gpgsign true       # Sign all commits
         git config --global gpg.x509.program gitsign  # Use gitsign for signing
         git config --global gpg.format x509           # gitsign expects x509 args
+        
+        # Set GitHub-specific OIDC configuration
+        git config --global gitsign.connectorID https://github.com/login/oauth
+        git config --global gitsign.issuer https://token.actions.githubusercontent.com
+        git config --global gitsign.clientID sigstore
+        
+        # Configure Sigstore endpoints
+        git config --global gitsign.fulcio https://fulcio.sigstore.dev
+        git config --global gitsign.rekor https://rekor.sigstore.dev
+        
+        # Enable experimental features for better GitHub support
+        git config --global gitsign.experimental true
 
         # Use workflow name as the username
         git config --global user.name "${{ github.workflow }}"
