@@ -1,6 +1,3 @@
-# Copyright 2022 The Distroless Authors
-# SPDX-License-Identifier: Apache-2.0
-
 name: 'Build image snapshot with apko'
 description: |
   This action builds an OCI image with apko, given a config file
@@ -102,7 +99,6 @@ inputs:
     required: false
     default: ''
 
-  # Note: requires "actions: read"
   slsa-attest:
     description: |
       Upload build provenance information as attestation.
@@ -163,6 +159,38 @@ inputs:
     description: address of rekor STL server (default "https://rekor.sigstore.dev")
     default: "https://rekor.sigstore.dev"
 
+  UPLOAD_GITHUB_CODE:
+    description: |
+      Upload Scan results to github security
+    required: false
+    default: "false"
+
+  RUN_TRIVY:
+    description: Run trivy scan or not.
+    required: true
+    default: "true"
+
+  RUN_GRYPE:
+    description: Run grype scan or not.
+    required: true
+    default: "true"
+
+  RUN_SNYK:
+    description: Run snyk scan or not, set SNYK_TOKEN as well
+    required: true
+    default: "true"
+
+  SNYK_TOKEN:
+    description: |
+      SNYK Token for vul scanning
+    required: true
+
+  SNYK_VERSION:
+    description: |
+      SNYK Token for vul scanning
+    required: false
+    default: "v1.966.0"
+
 outputs:
   digest:
     value: ${{ steps.apko.outputs.digest }}
@@ -204,6 +232,12 @@ outputs:
     value: ${{ steps.extract.outputs.shortdigest-riscv64 }}
   shortdigest-s390x:
     value: ${{ steps.extract.outputs.shortdigest-s390x }}
+  TRIVY_COUNT:
+    value: ${{ steps.scan-report.outputs.TRIVY_COUNT }}
+  GRYPE_COUNT:
+    value: ${{ steps.scan-report.outputs.GRYPE_COUNT }}
+  SNYK_COUNT:
+    value: ${{ steps.scan-report.outputs.SNYK_COUNT }}
 
 runs:
   using: composite
@@ -221,8 +255,6 @@ runs:
       shell: bash
       run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin -v
 
-    # Only publish the versioned tag to start.  After we have signed and
-    # attested things, then we use crane to update :latest below.
     - uses: d4rkfella/actions/apko-publish@main
       id: apko
       with:
@@ -272,7 +304,6 @@ runs:
         echo "Adding GitHub step output: ${output}"
         echo "${output}" >> $GITHUB_OUTPUT
 
-        # If its an index, extract the platform digests too
         CRANE_MANIFEST_OUTPUT="$(crane manifest ${{ steps.apko.outputs.digest }})"
         if [[ "$(echo $CRANE_MANIFEST_OUTPUT | jq -r .mediaType)" == "application/vnd.oci.image.index.v1+json" ]]; then
           for combo in `echo $CRANE_MANIFEST_OUTPUT | jq -r '.manifests[] | .platform.architecture + .platform.variant + "_" + .digest'`; do
@@ -301,10 +332,8 @@ runs:
           syft "${digest}" -o spdx-json | cosign attest --yes --type spdxjson --predicate - "${digest}"
         }
 
-        # First attest the index SBOM
         attest_sbom "index" "${{ steps.extract.outputs.digest-index }}" "sbom-index.spdx.json"
 
-        # Next, for each architecture (if present)
         [[ "${{ steps.extract.outputs.digest-amd64 }}" == "" ]] || attest_sbom "amd64" "${{ steps.extract.outputs.digest-amd64 }}" "sbom-x86_64.spdx.json"
         [[ "${{ steps.extract.outputs.digest-arm64 }}" == "" ]] || attest_sbom "arm64" "${{ steps.extract.outputs.digest-arm64 }}" "sbom-aarch64.spdx.json"
         [[ "${{ steps.extract.outputs.digest-386 }}" == "" ]] || attest_sbom "386" "${{ steps.extract.outputs.digest-386 }}" "sbom-x86.spdx.json"
@@ -314,7 +343,6 @@ runs:
         [[ "${{ steps.extract.outputs.digest-riscv64 }}" == "" ]] || attest_sbom "riscv64" "${{ steps.extract.outputs.digest-riscv64 }}" "sbom-riscv64.spdx.json"
         [[ "${{ steps.extract.outputs.digest-s390x }}" == "" ]] || attest_sbom "s390x" "${{ steps.extract.outputs.digest-s390x }}" "sbom-s390x.spdx.json"
 
-    # See https://github.com/slsa-framework/slsa-github-generator/tree/main/internal/builders/container
     - name: 'SLSA: Generate provenance and attest'
       if: ${{ inputs.slsa-attest == 'true' }}
       shell: bash
@@ -325,11 +353,10 @@ runs:
         GENERATOR_RELEASE_BINARY: slsa-generator-container-linux-amd64
         GENERATOR_RELEASE_BINARY_SHA256: 5f293677eb3433328140c547232a760c0aa513a049c2d2f4557fefe686acdcf8
         GH_TOKEN: "${{ github.token }}"
-        GITHUB_CONTEXT: "${{ toJSON(github) }}" # Needed by slsa-generator-container
+        GITHUB_CONTEXT: "${{ toJSON(github) }}"
       run: |
         set -x
       
-        # Fetch the generator
         gh release -R "${GENERATOR_REPOSITORY}" download "${GENERATOR_RELEASE_TAG}" -p "${GENERATOR_RELEASE_BINARY}"
         COMPUTED_HASH="$(sha256sum "${GENERATOR_RELEASE_BINARY}" | awk '{print $1}')"
         if [[ "${COMPUTED_HASH}" != "${GENERATOR_RELEASE_BINARY_SHA256}" ]]; then
@@ -338,7 +365,6 @@ runs:
         fi
         chmod +x "${GENERATOR_RELEASE_BINARY}"
 
-        # Create the provenance document
         trap "rm -f provenance.json" EXIT
         echo "Generating SLSA build provenance ..."
         "./${GENERATOR_RELEASE_BINARY}" generate --predicate="provenance.json"
@@ -352,10 +378,8 @@ runs:
           cosign attest --yes --type slsaprovenance --predicate="provenance.json" "${digest}"
         }
 
-        # First attest the index
         attest_slsa "index" "${{ steps.extract.outputs.digest-index }}"
 
-        # Next, for each architecture (if present)
         [[ "${{ steps.extract.outputs.digest-amd64 }}" == "" ]] || attest_slsa "amd64" "${{ steps.extract.outputs.digest-amd64 }}"
         [[ "${{ steps.extract.outputs.digest-arm64 }}" == "" ]] || attest_slsa "arm64" "${{ steps.extract.outputs.digest-arm64 }}"
         [[ "${{ steps.extract.outputs.digest-386 }}" == "" ]] || attest_slsa "386" "${{ steps.extract.outputs.digest-386 }}"
@@ -365,8 +389,6 @@ runs:
         [[ "${{ steps.extract.outputs.digest-riscv64 }}" == "" ]] || attest_slsa "riscv64" "${{ steps.extract.outputs.digest-riscv64 }}"
         [[ "${{ steps.extract.outputs.digest-s390x }}" == "" ]] || attest_slsa "s390x" "${{ steps.extract.outputs.digest-s390x }}"
 
-    # Now that everything else has completed successfully, update the target tag.
-    # based on the digest produced above.
     - shell: bash
       run: |
         set -x
@@ -377,3 +399,239 @@ runs:
         do
           crane cp ${{ steps.apko.outputs.digest }} ${{ inputs.base-tag }}:$tag
         done
+
+    - id: scan-start
+      run: |
+        echo "date=$(TZ=Zulu date "+%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - id: install-snyk
+      if: inputs.RUN_SNYK == 'true'
+      name: Run Snyk to check Docker image for vulnerabilities
+      shell: bash
+      env:
+        SNYK_TOKEN: ${{ inputs.SNYK_TOKEN }}
+        SNYK_VERSION: ${{ inputs.SNYK_VERSION }}
+      run: |
+        set -ex
+
+        SNYK_DOWNLOAD="snyk-linux"
+
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          SNYK_DOWNLOAD="snyk-linux"
+        elif [ "$RUNNER_OS" == "Windows" ]; then
+          SNYK_DOWNLOAD="snyk-win.exe"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          SNYK_DOWNLOAD="snyk-macos"
+        else
+          echo "$RUNNER_OS not supported"
+          exit 1
+        fi
+
+        curl -s -o snyk https://static.snyk.io/cli/${SNYK_VERSION}/${SNYK_DOWNLOAD}
+
+        echo "SNYK_VERSION=${SNYK_VERSION}" >> $GITHUB_ENV
+        echo "SNYK_URL=https://static.snyk.io/cli/${SNYK_VERSION}/${SNYK_DOWNLOAD}" >> $GITHUB_ENV
+
+        chmod +x snyk
+
+    - name: Run Snyk to check Docker image for vulnerabilities
+      if: inputs.RUN_SNYK == 'true'
+      shell: bash
+      env:
+        SNYK_TOKEN: ${{ inputs.SNYK_TOKEN }}
+      run: |
+        ./snyk container test ${{ steps.apko.outputs.digest }} \
+        --app-vulns --json --severity-threshold=low \
+        --json-file-output=snyk.json >/dev/null || true
+
+    - name: Cosign Attest Snyk results
+      if: inputs.RUN_SNYK == 'true'
+      shell: bash
+      id: snyk-attest
+      env:
+        COSIGN_EXPERIMENTAL: "true"
+      run: |
+        ATTESTATION=$(mktemp)
+
+        echo "Snyk SCANNER_URI: ${{ env.SNYK_URL }}"
+        echo "Snyk SCANNER_VERSION: ${{ env.SNYK_VERSION }}"
+
+        cat > "${ATTESTATION}" <<EOF
+        {
+            "invocation": {
+              "parameters": null,
+              "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "event_id": "${{ github.run_id }}",
+              "builder.id": "${{ github.workflow }}"
+            },
+            "scanner": {
+              "uri": "${{ env.SNYK_URL }}",
+              "version": "${{ env.SNYK_VERSION }}",
+              "result": $(cat snyk.json | jq .)
+            },
+            "metadata": {
+              "scanStartedOn": "${{ steps.scan-start.outputs.date }}",
+              "scanFinishedOn": "$(TZ=Zulu date "+%Y-%m-%dT%H:%M:%SZ")"
+            }
+        }
+        EOF
+
+        export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
+
+        cosign attest --yes --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
+        --type vuln --predicate "${ATTESTATION}" ${{ steps.apko.outputs.digest }}
+
+    - name:  Scan image with AquaSec/Trivy
+      if: inputs.RUN_TRIVY == 'true'
+      uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # v0.30.0
+      id: trivy-scan
+      with:
+        image-ref: ${{ steps.apko.outputs.digest }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        exit-code: 0
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+
+    - name: Cosign Attest trivy results
+      if: inputs.RUN_TRIVY == 'true'
+      shell: bash
+      id: trivy-attest
+      env:
+        COSIGN_EXPERIMENTAL: "true"
+      run: |
+        ATTESTATION=$(mktemp)
+
+        export SCANNER_URI=$(cat trivy-results.sarif | jq -r .runs[0].tool.driver.informationUri)
+        export SCANNER_VERSION=$(cat trivy-results.sarif | jq -r .runs[0].tool.driver.version)
+
+        echo "trivy SCANNER_URI: $SCANNER_URI"
+        echo "trivy SCANNER_VERSION: $SCANNER_VERSION"
+
+        cat > "${ATTESTATION}" <<EOF
+        {
+            "invocation": {
+              "parameters": null,
+              "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "event_id": "${{ github.run_id }}",
+              "builder.id": "${{ github.workflow }}"
+            },
+            "scanner": {
+              "uri": "$SCANNER_URI",
+              "version": "$SCANNER_VERSION",
+              "result": $(cat trivy-results.sarif | jq .)
+            },
+            "metadata": {
+              "scanStartedOn": "${{ steps.scan-start.outputs.date }}",
+              "scanFinishedOn": "$(TZ=Zulu date "+%Y-%m-%dT%H:%M:%SZ")"
+            }
+        }
+        EOF
+
+        export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
+
+        cosign attest --yes --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
+        --type vuln --predicate "${ATTESTATION}" ${{ steps.apko.outputs.digest }}
+
+    - name: Upload Trivy results to GitHub Security
+      if: inputs.UPLOAD_GITHUB_CODE == 'true' && inputs.RUN_TRIVY == 'true'
+      uses: github/codeql-action/upload-sarif@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
+      with:
+        sarif_file: trivy-results.sarif
+    
+    - name: Scan image with Anchore/Grype
+      if: inputs.RUN_GRYPE == 'true'
+      id: grype-scan
+      uses: anchore/scan-action@7c05671ae9be166aeb155bad2d7df9121823df32 # v6.1.0
+      with:
+        image: ${{ steps.apko.outputs.digest }}
+        fail-build: false
+        severity-cutoff: low
+
+    - name: Cosign Attest Grype results
+      if: inputs.RUN_GRYPE == 'true'
+      shell: bash
+      id: grype-attest
+      env:
+        COSIGN_EXPERIMENTAL: "true"
+      run: |
+        ATTESTATION=$(mktemp)
+
+        export SCANNER_URI=$(cat ${{ steps.grype-scan.outputs.sarif }} | jq -r .runs[0].tool.driver.informationUri)
+        export SCANNER_VERSION=$(cat ${{ steps.grype-scan.outputs.sarif }} | jq -r .runs[0].tool.driver.version)
+
+        echo "grype SCANNER_URI: $SCANNER_URI"
+        echo "grype SCANNER_VERSION: $SCANNER_VERSION"
+
+        cat > "${ATTESTATION}" <<EOF
+        {
+            "invocation": {
+              "parameters": null,
+              "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "event_id": "${{ github.run_id }}",
+              "builder.id": "${{ github.workflow }}"
+            },
+            "scanner": {
+              "uri": "$SCANNER_URI",
+              "version": "$SCANNER_VERSION",
+              "result": $(cat ${{ steps.grype-scan.outputs.sarif }} | jq .)
+            },
+            "metadata": {
+              "scanStartedOn": "${{ steps.scan-start.outputs.date }}",
+              "scanFinishedOn": "$(TZ=Zulu date "+%Y-%m-%dT%H:%M:%SZ")"
+            }
+        }
+        EOF
+
+        export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
+
+        cosign attest --yes --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
+        --type vuln --predicate "${ATTESTATION}" ${{ steps.apko.outputs.digest }} 
+    
+    - name: Upload Grype results to GitHub Security
+      if: inputs.UPLOAD_GITHUB_CODE == 'true' && inputs.RUN_GRYPE == 'true'
+      uses: github/codeql-action/upload-sarif@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
+      with:
+        sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+
+    - name: High Level Scan report
+      id: scan-report
+      shell: bash
+      run: |
+        GRYPE_COUNT="0"
+        if [ "${{ inputs.RUN_GRYPE }}" = "true" ]; then
+          GRYPE_COUNT=$(cat ${{ steps.grype-scan.outputs.sarif }} | jq '.runs[0].results | length')
+        fi
+
+        TRIVY_COUNT="0"
+        if [ "${{ inputs.RUN_TRIVY }}" = "true" ]; then
+          TRIVY_COUNT=$(cat trivy-results.sarif | jq '.runs[0].results | length')
+        fi
+
+        SNYK_COUNT="0"
+        if [ "${{ inputs.RUN_SNYK }}" = "true" ]; then
+          SNYK_COUNT=$(cat snyk.json | jq .uniqueCount)
+        fi
+
+        echo "SNYK_COUNT: $SNYK_COUNT, GRYPE_COUNT: $GRYPE_COUNT, TRIVY_COUNT: $TRIVY_COUNT"
+
+        echo "SNYK_COUNT=$SNYK_COUNT" >> $GITHUB_OUTPUT
+        echo "GRYPE_COUNT=$GRYPE_COUNT" >> $GITHUB_OUTPUT
+        echo "TRIVY_COUNT=$TRIVY_COUNT" >> $GITHUB_OUTPUT
+
+    - name: Cue Verify Attestation
+      id: cue-verify
+      shell: bash
+      env:
+        COSIGN_EXPERIMENTAL: "true"
+      run: |
+        cat > vulnz.cue <<EOF
+          predicateType: "https://cosign.sigstore.dev/attestation/vuln/v1"
+        EOF
+        
+        export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
+        
+        cosign verify-attestation --rekor-url ${{ inputs.REKOR_URL }} \
+          --type vuln --policy vulnz.cue ${{ steps.apko.outputs.digest }} --certificate-oidc-issuer "https://token.actions.githubusercontent.com" --certificate-identity "https://github.com/${{ github.workflow_ref }}" || \
+          echo "WARNING: Could not verify attestation (is this a private image?)"
