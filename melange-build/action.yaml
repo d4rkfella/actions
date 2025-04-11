@@ -175,10 +175,20 @@ runs:
 
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
           cgr.dev/chainguard/melange "${args[@]}"
+    
+    - name: Rebuild package
+      shell: bash
+      run: |
+        args=()
+        args+=(rebuild "${{ inputs.repository-path }}"/"${{ inputs.archs }}"/*.apk --arch "${{ inputs.archs }}")
+
+        if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
+          args+=(--signing-key "${{ inputs.signing-key-path }}")
+        fi
         
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-          cgr.dev/chainguard/melange rebuild "${{ inputs.repository-path }}"/"${{ inputs.archs }}"/*.apk
-
+          cgr.dev/chainguard/melange "${args[@]}"
+    
     - name: Test package and merge Index
       shell: bash
       run: |
