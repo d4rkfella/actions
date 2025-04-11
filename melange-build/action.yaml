@@ -9,11 +9,6 @@ inputs:
       The config file to use for building the package.
     default: .melange.yaml
 
-  multi-config:
-    description: |
-      Comma-separated list of config files to use for building package(s).
-    default: ''
-
   config-file-license:
     description: |
       License to use for the melange config itself.
@@ -151,69 +146,60 @@ runs:
         echo -n "$MELANGE_PRIVATE_KEY" > "${{ inputs.signing-key-path }}"
         chmod 400 "${{ inputs.signing-key-path }}"
 
-    - name: Build packages with melange (container)
+    - name: Build package
       shell: bash
       run: |
-        melangeconfigs="${{ inputs.multi-config }}"
-        [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
+        args=()
+        args+=(build "${{ inputs.config }}")
+        args+=(--license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
 
-        for config in ${melangeconfigs//,/ }; do
-          args=()
-          args+=(build "$config")
-          args+=(--license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
+        [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
+        [ -n "${{ inputs.keyring-append }}" ] && args+=(--keyring-append "${{ inputs.keyring-append }}")
+        [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
+        [ -n "${{ inputs.namespace }}" ] && args+=(--namespace "${{ inputs.namespace }}")
+        [ -n "${{ inputs.cache-dir }}" ] && args+=(--cache-dir "${{ inputs.cache-dir }}")
+        [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dir "${{ inputs.pipeline-dir }}")
+        [ -n "${{ inputs.git-commit }}" ] && args+=(--git-commit "${{ inputs.git-commit }}")
+        [ -n "${{ inputs.git-repo-url }}" ] && args+=(--git-repo-url "${{ inputs.git-repo-url }}")
+        [ -n "${{ inputs.build-date }}" ] && args+=(--build-date "${{ inputs.build-date }}")
 
-          [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
-          [ -n "${{ inputs.keyring-append }}" ] && args+=(--keyring-append "${{ inputs.keyring-append }}")
-          [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
-          [ -n "${{ inputs.namespace }}" ] && args+=(--namespace "${{ inputs.namespace }}")
-          [ -n "${{ inputs.cache-dir }}" ] && args+=(--cache-dir "${{ inputs.cache-dir }}")
-          [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dir "${{ inputs.pipeline-dir }}")
-          [ -n "${{ inputs.git-commit }}" ] && args+=(--git-commit "${{ inputs.git-commit }}")
-          [ -n "${{ inputs.git-repo-url }}" ] && args+=(--git-repo-url "${{ inputs.git-repo-url }}")
-          [ -n "${{ inputs.build-date }}" ] && args+=(--build-date "${{ inputs.build-date }}")
+        if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
+          args+=(--empty-workspace)
+        else
+          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
+        fi
 
-          if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
-            args+=(--empty-workspace)
-          else
-            args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
-          fi
+        if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
+          args+=(--signing-key "${{ inputs.signing-key-path }}")
+        fi
 
-          if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
-            args+=(--signing-key "${{ inputs.signing-key-path }}")
-          fi
+        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          cgr.dev/chainguard/melange "${args[@]}"
 
-          docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-            cgr.dev/chainguard/melange "${args[@]}"
-        done
-
-    - name: Test packages and merge index
+    - name: Test package and merge Index
       shell: bash
       run: |
-        melangeconfigs="${{ inputs.multi-config }}"
-        [[ "${melangeconfigs}" != "" ]] || melangeconfigs="${{ inputs.config }}"
+        args=()
+        args+=(test "${{ inputs.config }}" --arch "${{ inputs.archs }}")
 
-        for config in ${melangeconfigs//,/ }; do
-          args=(test "$config" --arch "${{ inputs.archs }}")
+        if [[ -d "${{ inputs.repository-path }}" ]]; then
+          args+=(--repository-append "${{ inputs.repository-path }}")
+          args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
+        fi
 
-          if [[ -d "${{ inputs.repository-path }}" ]]; then
-            args+=(--repository-append "${{ inputs.repository-path }}")
-            args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
-          fi
+        [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
+        [ -n "${{ inputs.tests-keyring-append }}" ] && args+=(--keyring-append "${{ inputs.tests-keyring-append }}")
+        [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
+        [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dirs "${{ inputs.pipeline-dir }}")
 
-          [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
-          [ -n "${{ inputs.tests-keyring-append }}" ] && args+=(--keyring-append "${{ inputs.tests-keyring-append }}")
-          [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
-          [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dirs "${{ inputs.pipeline-dir }}")
+        if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
+          args+=(--empty-workspace)
+        else
+          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
+        fi
 
-          if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
-            args+=(--empty-workspace)
-          else
-            args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
-          fi
-
-          docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-            cgr.dev/chainguard/melange "${args[@]}"
-        done
+        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          cgr.dev/chainguard/melange "${args[@]}"
 
         apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
         if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
