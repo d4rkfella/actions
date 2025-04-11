@@ -145,6 +145,7 @@ runs:
 
     - name: Generate temporary signing key
       if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
+      shell: bash
       run: |
         docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" cgr.dev/chainguard/melange keygen "${{ inputs.signing-key-path }}"
 
