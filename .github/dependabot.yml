@@ -1,6 +1,14 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/*/action.yaml"
+    directory: "/apko-publish/action.yaml"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/apko-snapshot/action.yaml"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/melange-build/action.yaml"
     schedule:
       interval: "weekly"
