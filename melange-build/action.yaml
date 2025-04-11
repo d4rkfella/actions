@@ -135,8 +135,6 @@ runs:
       id: commit-date
       if: ${{ inputs.commit-date == 'true' }}
       shell: bash
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         EXPECTED_COMMIT=$(yq '.pipeline[] | select(.uses == "git-checkout") | .with["expected-commit"]' "${{ inputs.config }}" | head -n 1)
         REPO_URL=$(yq '.pipeline[] | select(.uses == "git-checkout") | .with["repository"]' "${{ inputs.config }}" | head -n 1)
