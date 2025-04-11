@@ -203,7 +203,7 @@ runs:
           [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
           [ -n "${{ inputs.tests-keyring-append }}" ] && args+=(--keyring-append "${{ inputs.tests-keyring-append }}")
           [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
-          [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dir "${{ inputs.pipeline-dir }}")
+          [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dirs "${{ inputs.pipeline-dir }}")
 
           if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
             args+=(--empty-workspace)
