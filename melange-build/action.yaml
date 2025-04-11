@@ -136,31 +136,46 @@ runs:
       if: ${{ inputs.commit-date == 'true' }}
       shell: bash
       run: |
+        # Extract the commit and repo details from the config file using yq
         EXPECTED_COMMIT=$(yq '.pipeline[] | select(.uses == "git-checkout") | .with["expected-commit"]' "${{ inputs.config }}" | head -n 1)
         REPO_URL=$(yq '.pipeline[] | select(.uses == "git-checkout") | .with["repository"]' "${{ inputs.config }}" | head -n 1)
-    
+        
+        # Debugging: Print extracted values
+        echo "DEBUG: EXPECTED_COMMIT = $EXPECTED_COMMIT"
+        echo "DEBUG: REPO_URL = $REPO_URL"
+        
         if [[ -z "$EXPECTED_COMMIT" || -z "$REPO_URL" ]]; then
           echo "No git-checkout step or expected-commit found. Skipping commit date extraction."
           echo "commit-date=" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-    
+        
+        # Extract the repo name from the URL
         REPO=$(echo "$REPO_URL" | sed -E 's#https://github.com/([^/]+/[^/]+)(\.git)?#\1#')
-    
+        
+        # Debugging: Print the repository name
+        echo "DEBUG: REPO = $REPO"
+        
+        # Fetch commit date from GitHub API
         COMMIT_DATE=$(curl -s -H "Authorization: token $GH_TOKEN" \
           "https://api.github.com/repos/$REPO/commits/$EXPECTED_COMMIT" \
           | jq -r '.commit.committer.date')
-    
+        
+        # Debugging: Print raw commit date response
+        echo "DEBUG: Raw API response for commit date = $COMMIT_DATE"
+        
         if [[ "$COMMIT_DATE" == "null" || -z "$COMMIT_DATE" ]]; then
           echo "Unable to retrieve commit date from GitHub API for $REPO@$EXPECTED_COMMIT"
           echo "commit-date=" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-    
+        
+        # Print the final commit date
         echo "Repository: $REPO"
         echo "Commit: $EXPECTED_COMMIT"
         echo "Date: $COMMIT_DATE"
-    
+        
+        # Output the commit date
         echo "commit-date=$COMMIT_DATE" >> "$GITHUB_OUTPUT"
 
     - name: Generate temporary signing key
