@@ -200,6 +200,11 @@ runs:
         for config in ${melangeconfigs//,/ }; do
           args=(test "$config" --arch "${{ inputs.archs }}")
 
+          if [[ -d "${{ inputs.repository-path }}" ]]; then
+            args+=(--repository-append "${{ inputs.repository-path }}")
+            args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
+          fi
+
           [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
           [ -n "${{ inputs.tests-keyring-append }}" ] && args+=(--keyring-append "${{ inputs.tests-keyring-append }}")
           [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
