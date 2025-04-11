@@ -157,7 +157,7 @@ runs:
         echo "DEBUG: REPO = $REPO"
         
         # Fetch commit date from GitHub API
-        COMMIT_DATE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+        COMMIT_DATE=$(curl -s \
           "https://api.github.com/repos/$REPO/commits/$EXPECTED_COMMIT" \
           | jq -r '.commit.committer.date')
         
