@@ -175,6 +175,9 @@ runs:
 
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
           cgr.dev/chainguard/melange "${args[@]}"
+        
+        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          cgr.dev/chainguard/melange rebuild "${{ inputs.repository-path }}"/"${{ inputs.archs }}"/*.apk
 
     - name: Test package and merge Index
       shell: bash
