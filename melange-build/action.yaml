@@ -187,7 +187,7 @@ runs:
             args+=(--signing-key "${{ inputs.signing-key-path }}")
           fi
 
-          docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
             cgr.dev/chainguard/melange "${args[@]}"
         done
 
@@ -211,20 +211,20 @@ runs:
             args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
           fi
 
-          docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
             cgr.dev/chainguard/melange "${args[@]}"
         done
 
         apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
         if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
           aws s3 cp "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" /tmp/APKINDEX.tar.gz --endpoint-url="$ENDPOINT_URL"
-          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
             cgr.dev/chainguard/melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk \
             --source /tmp/APKINDEX.tar.gz --merge
         else
-          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
+          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
             cgr.dev/chainguard/melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
