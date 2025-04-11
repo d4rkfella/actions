@@ -536,7 +536,7 @@ runs:
 
     - name: Upload Trivy results to GitHub Security
       if: inputs.UPLOAD_GITHUB_CODE == 'true' && inputs.RUN_TRIVY == 'true'
-      uses: github/codeql-action/upload-sarif@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
+      uses: github/codeql-action/upload-sarif@45775bd8235c68ba998cffa5171334d58593da47 # v3.28.15
       with:
         sarif_file: trivy-results.sarif
     
@@ -591,7 +591,7 @@ runs:
     
     - name: Upload Grype results to GitHub Security
       if: inputs.UPLOAD_GITHUB_CODE == 'true' && inputs.RUN_GRYPE == 'true'
-      uses: github/codeql-action/upload-sarif@1b549b9259bda1cb5ddde3b41741a82a2d15a841 # v3.28.13
+      uses: github/codeql-action/upload-sarif@45775bd8235c68ba998cffa5171334d58593da47 # v3.28.15
       with:
         sarif_file: ${{ steps.grype-scan.outputs.sarif }}
 
