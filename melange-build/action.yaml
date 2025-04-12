@@ -192,7 +192,7 @@ runs:
         if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
           args+=(--empty-workspace)
         else
-          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
+          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
 
         if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
@@ -234,7 +234,7 @@ runs:
         if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
           args+=(--empty-workspace)
         else
-          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "$config")")
+          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
 
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
