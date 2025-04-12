@@ -211,6 +211,12 @@ runs:
         if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
           args+=(--signing-key "${{ inputs.signing-key-path }}")
         fi
+
+        if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
+          args+=(--empty-workspace)
+        else
+          args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
+        fi
         
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
           cgr.dev/chainguard/melange "${args[@]}"
