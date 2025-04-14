@@ -3,12 +3,12 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/apko-publish"
     schedule:
-      interval: "weekly"
+      interval: "daily"
   - package-ecosystem: "github-actions"
     directory: "/apko-snapshot"
     schedule:
-      interval: "weekly"
+      interval: "daily"
   - package-ecosystem: "github-actions"
     directory: "/melange-build"
     schedule:
-      interval: "weekly"
+      interval: "daily"
