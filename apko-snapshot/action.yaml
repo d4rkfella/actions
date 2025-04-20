@@ -149,6 +149,8 @@ inputs:
     required: false
     default: ''
 
+  vars_context: ${{ toJSON(vars) }}
+
   FULCIO_URL:
     required: false
     description: address of sigstore PKI server (default "https://fulcio.sigstore.dev")
@@ -376,7 +378,7 @@ runs:
         GENERATOR_RELEASE_BINARY_SHA256: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
         GH_TOKEN: "${{ github.token }}"
         GITHUB_CONTEXT: "${{ toJSON(github) }}"
-        GITHUB_VARS: "${{ toJSON(vars) }}"
+        GITHUB_VARS: "${{ inputs.vars_context }}"
       run: |
         set -x
       
