@@ -403,7 +403,7 @@ runs:
           arch="${1}"
           digest="${2}"
           echo "Attaching SLSA build provenance to ${digest} (arch: ${arch}) ..."
-          cosign attest --new-bundle-format --yes --type slsaprovenance --predicate="provenance.json" "${digest}"
+          cosign attest --new-bundle-format --yes --type slsaprovenance --predicate="provenance.json" --slsa-version="v1.0" "${digest}"
         }
 
         attest_slsa "index" "${{ steps.extract.outputs.digest-index }}"
