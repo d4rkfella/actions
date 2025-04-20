@@ -201,8 +201,21 @@ runs:
 
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
           cgr.dev/chainguard/melange "${args[@]}"
+
+    - name: Read REPRODUCIBLE from config.yaml
+      id: is_reproducible
+      shell: bash
+      run: |
+        REPRODUCIBLE=$(yq eval '.environment.environment.REPRODUCIBLE' "${{ inputs.config }}")
+    
+        if [ -z "$REPRODUCIBLE" ]; then
+          REPRODUCIBLE="true"
+        fi
+    
+        echo "reproducible=$REPRODUCIBLE" >> $GITHUB_OUTPUT
     
     - name: Rebuild package
+      if: steps.is_reproducible.outputs.reproducible == 'true'
       shell: bash
       run: |
         args=()
