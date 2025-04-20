@@ -340,7 +340,7 @@ runs:
             exit 1
           fi
           echo "Attaching ${sbomfile} to ${digest} as spdxjson attestation (arch: ${arch}) ..."
-          cosign attest --yes --type spdxjson --predicate "${sbomfile}" "${digest}"
+          cosign attest --new-bundle-format --yes --type spdxjson --predicate "${sbomfile}" "${digest}"
           rm -f "${sbomfile}"
         }
 
