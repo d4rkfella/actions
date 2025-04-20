@@ -125,6 +125,12 @@ inputs:
     required: false
     default: ''
 
+  sbom-path:
+    description: |
+      Path to write the SBOMs.
+    required: false
+    default: ''
+
 outputs:
   digest:
     value: ${{ steps.docker-run.outputs.digest }}
@@ -180,13 +186,15 @@ runs:
         done
       fi
 
+      sbomPath="--sbom-path=${{ inputs.sbom-path }}"
+      
       export DIGEST_FILE="/tmp/digest"
       /usr/bin/apko publish \
         --sbom=true \
         --vcs=${{ inputs.vcs-url }} \
         --lockfile=${{ inputs.lockfile }} \
         ${{ inputs.debug && '--log-level debug' }} \
-        --image-refs="${{ inputs.image_refs }}" ${{ inputs.config }} ${{ inputs.tag }} $keys $build_repos $repos $packages $archs $annotations $build_options | tee ${DIGEST_FILE}
+        --image-refs="${{ inputs.image_refs }}" ${{ inputs.config }} ${{ inputs.tag }} $keys $build_repos $repos $packages $archs $annotations $build_options $sbomPath | tee ${DIGEST_FILE}
       echo EXIT CODE: $?
       EOF
       )"
