@@ -97,13 +97,13 @@ inputs:
     description: |
       Upload SBOMs as attestations.
     required: false
-    default: ''
+    default: true
 
   slsa-attest:
     description: |
       Upload build provenance information as attestation.
     required: false
-    default: ''
+    default: true
 
   generic-user:
     description: |
@@ -257,6 +257,13 @@ runs:
       shell: bash
       run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin -v
 
+    - name: Generate dynamic inputs for apko-publish
+      shell: bash
+      id: apko-publish-inputs
+      run: |
+        # If sbom-attest enabled, write SBOMs to working directory to attest later
+        echo "sbom-path=${{ inputs.sbom-attest && '.' || ''}}" >> $GITHUB_OUTPUT
+
     - uses: d4rkfella/actions/apko-publish@main
       id: apko
       with:
@@ -278,6 +285,7 @@ runs:
         generic-pass: ${{ inputs.generic-pass }}
         annotations: ${{ inputs.annotations }}
         source-date-epoch: ${{ inputs.source-date-epoch }}
+        sbom-path: ${{ steps.apko-publish-inputs.outputs.sbom-path }}
 
     - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
       with:
