@@ -202,7 +202,7 @@ runs:
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
           cgr.dev/chainguard/melange "${args[@]}"
 
-    - name: Read REPRODUCIBLE from config.yaml
+    - name: Check config if build is reproducible
       id: is_reproducible
       shell: bash
       run: |
