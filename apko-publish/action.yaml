@@ -182,7 +182,7 @@ runs:
 
       export DIGEST_FILE="/tmp/digest"
       /usr/bin/apko publish \
-        --sbom=false \
+        --sbom=true \
         --vcs=${{ inputs.vcs-url }} \
         --lockfile=${{ inputs.lockfile }} \
         ${{ inputs.debug && '--log-level debug' }} \
