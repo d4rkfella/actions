@@ -149,7 +149,8 @@ inputs:
     required: false
     default: ''
 
-  vars_context: ${{ toJSON(vars) }}
+  vars_context:
+    default: ${{ toJSON(vars) }}
 
   FULCIO_URL:
     required: false
