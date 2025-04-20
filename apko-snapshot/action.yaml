@@ -330,8 +330,17 @@ runs:
           arch="${1}"
           digest="${2}"
           sbomfile="${3}"
+          if [[ "${sbomfile}" == "" ]]; then
+            echo "Unknown architecture: ${arch}. Exiting."
+            exit 1
+          fi
+          if [[ ! -f "${sbomfile}" ]]; then
+            echo "Unable to find SBOM on disk: ${sbomfile} (arch: ${arch}). Exiting."
+            exit 1
+          fi
           echo "Attaching ${sbomfile} to ${digest} as spdxjson attestation (arch: ${arch}) ..."
-          syft "${digest}" -o spdx-json | cosign attest --new-bundle-format --yes --type spdxjson --predicate - "${digest}"
+          cosign attest --yes --new-bundle-format --type spdxjson --predicate "${sbomfile}" "${digest}"
+          rm -f "${sbomfile}"
         }
 
         attest_sbom "index" "${{ steps.extract.outputs.digest-index }}" "sbom-index.spdx.json"
@@ -351,7 +360,7 @@ runs:
       env:
         COSIGN_EXPERIMENTAL: "true"
         GENERATOR_REPOSITORY: slsa-framework/slsa-github-generator
-        GENERATOR_RELEASE_TAG: v2.0.0
+        GENERATOR_RELEASE_TAG: v2.1.0
         GENERATOR_RELEASE_BINARY: slsa-generator-container-linux-amd64
         GENERATOR_RELEASE_BINARY_SHA256: 5f293677eb3433328140c547232a760c0aa513a049c2d2f4557fefe686acdcf8
         GH_TOKEN: "${{ github.token }}"
