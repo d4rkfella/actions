@@ -306,6 +306,7 @@ runs:
         echo "Adding GitHub step output: ${output}"
         echo "${output}" >> $GITHUB_OUTPUT
 
+        # If its an index, extract the platform digests too
         CRANE_MANIFEST_OUTPUT="$(crane manifest ${{ steps.apko.outputs.digest }})"
         if [[ "$(echo $CRANE_MANIFEST_OUTPUT | jq -r .mediaType)" == "application/vnd.oci.image.index.v1+json" ]]; then
           for combo in `echo $CRANE_MANIFEST_OUTPUT | jq -r '.manifests[] | .platform.architecture + .platform.variant + "_" + .digest'`; do
@@ -339,12 +340,14 @@ runs:
             exit 1
           fi
           echo "Attaching ${sbomfile} to ${digest} as spdxjson attestation (arch: ${arch}) ..."
-          cosign attest --yes --new-bundle-format --type spdxjson --predicate "${sbomfile}" "${digest}"
+          cosign attest --yes --type spdxjson --predicate "${sbomfile}" "${digest}"
           rm -f "${sbomfile}"
         }
 
+        # First attest the index SBOM
         attest_sbom "index" "${{ steps.extract.outputs.digest-index }}" "sbom-index.spdx.json"
 
+        # Next, for each architecture (if present)
         [[ "${{ steps.extract.outputs.digest-amd64 }}" == "" ]] || attest_sbom "amd64" "${{ steps.extract.outputs.digest-amd64 }}" "sbom-x86_64.spdx.json"
         [[ "${{ steps.extract.outputs.digest-arm64 }}" == "" ]] || attest_sbom "arm64" "${{ steps.extract.outputs.digest-arm64 }}" "sbom-aarch64.spdx.json"
         [[ "${{ steps.extract.outputs.digest-386 }}" == "" ]] || attest_sbom "386" "${{ steps.extract.outputs.digest-386 }}" "sbom-x86.spdx.json"
