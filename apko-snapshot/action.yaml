@@ -150,7 +150,9 @@ inputs:
     default: ''
 
   vars_context:
-    default: ${{ toJSON(vars) }}
+    description: "Serialized GitHub vars context"
+    required: false
+    default: '{}'
 
   FULCIO_URL:
     required: false
