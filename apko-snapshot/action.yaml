@@ -507,7 +507,7 @@ runs:
 
         export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
 
-        cosign attest --yes --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
+        cosign attest --yes --new-bundle-format --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
         --type vuln --predicate "${ATTESTATION}" ${{ steps.apko.outputs.digest }}
 
     - name:  Scan image with AquaSec/Trivy
@@ -559,7 +559,7 @@ runs:
 
         export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
 
-        cosign attest --yes --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
+        cosign attest --yes --new-bundle-format --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
         --type vuln --predicate "${ATTESTATION}" ${{ steps.apko.outputs.digest }}
 
     - name: Upload Trivy results to GitHub Security
@@ -614,7 +614,7 @@ runs:
 
         export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
 
-        cosign attest --yes --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
+        cosign attest --yes --new-bundle-format --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
         --type vuln --predicate "${ATTESTATION}" ${{ steps.apko.outputs.digest }} 
     
     - name: Upload Grype results to GitHub Security
