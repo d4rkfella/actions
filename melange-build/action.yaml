@@ -208,7 +208,7 @@ runs:
       run: |
         REPRODUCIBLE=$(yq eval '.environment.environment.REPRODUCIBLE' "${{ inputs.config }}")
     
-        if [ -z "$REPRODUCIBLE" ]; then
+        if [ -z "$REPRODUCIBLE" ] || [ "$REPRODUCIBLE" = "null" ]; then
           REPRODUCIBLE="true"
         fi
     
