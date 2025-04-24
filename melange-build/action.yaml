@@ -238,7 +238,7 @@ runs:
       shell: bash
       run: |
         args=()
-        args+=(test "${{ inputs.config }}" --arch "${{ inputs.archs }}")
+        args+=(test "${{ inputs.config }}" --arch "${{ inputs.archs }}" --test-package-append busybox)
 
         if [[ -d "${{ inputs.repository-path }}" ]]; then
           args+=(--repository-append "${{ inputs.repository-path }}")
