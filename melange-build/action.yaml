@@ -199,7 +199,7 @@ runs:
           args+=(--signing-key "${{ inputs.signing-key-path }}")
         fi
 
-        melange "${args[@]}"
+        sudo melange "${args[@]}"
 
     - name: Check config if build is reproducible
       id: is_reproducible
@@ -230,7 +230,7 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
         
-        melange "${args[@]}"
+        sudo melange "${args[@]}"
     
     - name: Test package and merge Index
       shell: bash
