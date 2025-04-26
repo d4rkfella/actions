@@ -277,5 +277,4 @@ runs:
     - name: 'Copy files to s3'
       shell: bash
       run: |
-        brew install awscli
         aws s3 cp --recursive "${{ inputs.repository-path }}/" "s3://${{ inputs.s3-bucket-name }}/" --endpoint-url "$ENDPOINT_URL" --checksum-algorithm CRC32
