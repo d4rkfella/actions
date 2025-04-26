@@ -163,7 +163,7 @@ runs:
       if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
       shell: bash
       run: |
-        docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" cgr.dev/chainguard/melange keygen "${{ inputs.signing-key-path }}"
+        melange keygen "${{ inputs.signing-key-path }}"
 
     - name: Set signing key from secret
       if: ${{ inputs.sign-with-key == 'true' && inputs.signing-key-path != '' }}
@@ -199,8 +199,7 @@ runs:
           args+=(--signing-key "${{ inputs.signing-key-path }}")
         fi
 
-        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-          cgr.dev/chainguard/melange "${args[@]}"
+        melange "${args[@]}"
 
     - name: Check config if build is reproducible
       id: is_reproducible
@@ -231,8 +230,7 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
         
-        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-          cgr.dev/chainguard/melange "${args[@]}"
+        melange "${args[@]}"
     
     - name: Test package and merge Index
       shell: bash
@@ -256,20 +254,17 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
 
-        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-          cgr.dev/chainguard/melange "${args[@]}"
+        melange "${args[@]}"
 
         apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
         if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
           aws s3 cp "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ github.workspace }}"/APKINDEX.tar.gz --endpoint-url="$ENDPOINT_URL"
-          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-            cgr.dev/chainguard/melange index \
+          melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk \
             --source "${{ github.workspace }}"/APKINDEX.tar.gz --merge
         else
-          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
-            cgr.dev/chainguard/melange index \
+          melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
         fi
