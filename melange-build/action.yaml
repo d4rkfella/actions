@@ -171,7 +171,17 @@ runs:
       run: |
         echo -n "$MELANGE_PRIVATE_KEY" > "${{ inputs.signing-key-path }}"
         chmod 400 "${{ inputs.signing-key-path }}"
-
+    
+    - name: Check for existing repositories in Melange config
+      id: check_config_repos
+      shell: bash
+      run: |
+        if [[ $(yq eval '(.environment.contents.repositories | length // 0) > 0' "${{ inputs.config }}" 2>/dev/null) == "true" ]]; then
+          echo "has_config_repos=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_config_repos=false" >> "$GITHUB_OUTPUT"
+        fi
+    
     - name: Build package
       shell: bash
       run: |
@@ -179,8 +189,11 @@ runs:
         args+=(build "${{ inputs.config }}")
         args+=(--license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
 
-        [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
-        [ -n "${{ inputs.keyring-append }}" ] && args+=(--keyring-append "${{ inputs.keyring-append }}")
+        if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
+          [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
+          [ -n "${{ inputs.keyring-append }}" ] && args+=(--keyring-append "${{ inputs.keyring-append }}")
+        fi
+        
         [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
         [ -n "${{ inputs.namespace }}" ] && args+=(--namespace "${{ inputs.namespace }}")
         [ -n "${{ inputs.cache-dir }}" ] && args+=(--cache-dir "${{ inputs.cache-dir }}")
