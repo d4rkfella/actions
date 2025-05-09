@@ -429,7 +429,7 @@ runs:
         done
 
     - name: Extract image name from digest
-      id: image-name
+      shell: bash
       run: |
         DIGEST="${{ steps.apko.outputs.digest }}"
         IMAGE_NAME=$(basename "$(cut -d'@' -f1 <<< "$DIGEST")")
