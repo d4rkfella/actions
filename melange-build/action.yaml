@@ -108,10 +108,7 @@ inputs:
   commit-date:
     default: true
 
-  artifactory-user:
-    default: ''
-
-  artifactory-password:
+  artifactory-access-token:
     default: ''
 
 runs:
@@ -295,6 +292,6 @@ runs:
       run: |
         curl -fL https://install-cli.jfrog.io | sh
         
-        jf c add --url https://packages.darkfellanetwork.com --user ${{ inputs.artifactory-user }} --password ${{ inputs.artifactory-password }}
+        jf c add --url https://packages.darkfellanetwork.com --access-token "${{ inputs.artifactory-access-token}}" --interactive=false
         
         jf rt upload --recursive "${{ inputs.repository-path }}/" wolfi-apk/
