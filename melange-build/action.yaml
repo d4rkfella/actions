@@ -300,12 +300,4 @@ runs:
     
         jf c add --url "${{ inputs.artifactory-url}}" --access-token "${{ inputs.artifactory-access-token}}" --interactive=false
         
-        cd "${{ inputs.repository-path }}"
-        
-        find . -type f -size +90M -exec \
-          jf rt upload --min-split=90M --retries=3 \
-            "{}" "${{ inputs.artifactory-repository-path }}/" \;
-        
-        jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" \
-          --recursive --exclude-patterns="*"
-  
+        cd "${{ inputs.repository-path }}" && jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" --recursive
