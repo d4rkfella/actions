@@ -132,10 +132,6 @@ runs:
           echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
           exit 1
         fi
-        if [[ -z "$AWS_ACCESS_KEY_ID" || -z "$AWS_SECRET_ACCESS_KEY" || -z "$ENDPOINT_URL" ]]; then
-          echo "AWS credentials or endpoint not configured"
-          exit 1
-        fi
 
     - name: Extract commit date from first git-checkout step
       id: commit-date
