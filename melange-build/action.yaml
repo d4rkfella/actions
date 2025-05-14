@@ -296,4 +296,4 @@ runs:
         
         jf c add --url "${{ inputs.artifactory-url}}" --access-token "${{ inputs.artifactory-access-token}}" --interactive=false
         
-        jf rt upload --recursive "${{ inputs.repository-path }}/*" "${{ inputs.artifactory-repository-path }}/"
+        jf rt upload "${{ inputs.repository-path }}/*" "${{ inputs.artifactory-repository-path }}/"
