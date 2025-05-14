@@ -275,7 +275,7 @@ runs:
           cgr.dev/chainguard/melange "${args[@]}"
     
         apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
-        artifactory_url="${{ inputs.artifactory-url }}/${{ inputs.archs }}/APKINDEX.tar.gz"
+        artifactory_url="${{ inputs.artifactory-url }}/artifactory/${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
     
         if curl --output /dev/null --silent --head --fail "$artifactory_url"; then
           echo "Merging with existing APKINDEX from Artifactory..."
