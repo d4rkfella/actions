@@ -295,5 +295,7 @@ runs:
         curl -fL https://install-cli.jfrog.io | sh
         
         jf c add --url "${{ inputs.artifactory-url}}" --access-token "${{ inputs.artifactory-access-token}}" --interactive=false
+
+        cd "${{ inputs.repository-path }}"
         
-        jf rt upload "${{ inputs.repository-path }}/*" "${{ inputs.artifactory-repository-path }}/"
+        jf rt upload ./* "${{ inputs.artifactory-repository-path }}/" --recursive
