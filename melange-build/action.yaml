@@ -298,4 +298,4 @@ runs:
 
         cd "${{ inputs.repository-path }}"
         
-        jf rt upload ./* "${{ inputs.artifactory-repository-path }}/" --recursive
+        jf rt upload . "${{ inputs.artifactory-repository-path }}/" --recursive
