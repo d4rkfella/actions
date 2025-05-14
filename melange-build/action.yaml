@@ -254,40 +254,44 @@ runs:
       run: |
         args=()
         args+=(test "${{ inputs.config }}" --arch "${{ inputs.archs }}" --test-package-append busybox)
-
+    
         if [[ -d "${{ inputs.repository-path }}" ]]; then
           args+=(--repository-append "${{ inputs.repository-path }}")
           args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
         fi
-
+    
         [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
         [ -n "${{ inputs.tests-keyring-append }}" ] && args+=(--keyring-append "${{ inputs.tests-keyring-append }}")
         [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
         [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dirs "${{ inputs.pipeline-dir }}")
-
+    
         if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
           args+=(--empty-workspace)
         else
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
-
+    
         docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
           cgr.dev/chainguard/melange "${args[@]}"
-
+    
         apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
-        if aws s3 ls "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" --endpoint-url="$ENDPOINT_URL" > /dev/null 2>&1; then
-          aws s3 cp "s3://${{ inputs.s3-bucket-name }}/${{ inputs.archs }}/APKINDEX.tar.gz" "${{ github.workspace }}"/APKINDEX.tar.gz --endpoint-url="$ENDPOINT_URL"
+        artifactory_url="${{ inputs.artifactory-url }}/${{ inputs.archs }}/APKINDEX.tar.gz"
+    
+        if curl --output /dev/null --silent --head --fail "$artifactory_url"; then
+          echo "Merging with existing APKINDEX from Artifactory..."
+          curl -L -o "${{ github.workspace }}"/APKINDEX.tar.gz "$artifactory_url"
           docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
             cgr.dev/chainguard/melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk \
             --source "${{ github.workspace }}"/APKINDEX.tar.gz --merge
         else
+          echo "Creating new APKINDEX..."
           docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
             cgr.dev/chainguard/melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
-        fi
+        fi 
   
     - name: 'Upload packages to Artifactory'
       shell: bash
