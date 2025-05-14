@@ -85,9 +85,6 @@ inputs:
       The source directory to use if empty-workspace is false.
     default: ${{ github.workspace }}
 
-  s3-bucket-name:
-    required: true
-
   cache-dir:
     description: |
       Directory used for cached inputs.
@@ -110,6 +107,12 @@ inputs:
 
   commit-date:
     default: true
+
+  artifactory-user:
+    default: ''
+
+  artifactory-password:
+    default: ''
 
 runs:
   using: 'composite'
@@ -287,7 +290,11 @@ runs:
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
         fi
   
-    - name: 'Copy files to s3'
+    - name: 'Upload packages to Artifactory'
       shell: bash
       run: |
-        aws s3 cp --recursive "${{ inputs.repository-path }}/" "s3://${{ inputs.s3-bucket-name }}/" --endpoint-url "$ENDPOINT_URL" --checksum-algorithm CRC32
+        curl -fL https://install-cli.jfrog.io | sh
+        
+        jf c add --url https://packages.darkfellanetwork.com --user ${{ inputs.artifactory-user }} --password ${{ inputs.artifactory-password }}
+        
+        jf rt upload --recursive "${{ inputs.repository-path }}/" wolfi-apk/
