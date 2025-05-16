@@ -148,7 +148,7 @@ runs:
       run: |
         sudo apt install -y build-essential git jq pkg-config cmake wget
         wget https://github.com/mikefarah/yq/releases/download/v4.45.4/yq_linux_amd64.tar.gz -O - |\
-        tar xz && mv ${BINARY} /usr/local/bin/yq
+        tar xz && mv yq_linux_amd64 /usr/local/bin/yq
 
     - name: 'Install dependencies (bubblewrap)'
       shell: bash
