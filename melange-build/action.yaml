@@ -337,6 +337,11 @@ runs:
         fi
         
         sudo melange "${args[@]}"
+
+    - name: 'Fix local repository permissions'
+      shell: bash
+      run: |
+        sudo chown -R runner:runner ${{ inputs.repository-path }}
     
     - name: Test package and merge Index
       shell: bash
