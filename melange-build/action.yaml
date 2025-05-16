@@ -146,7 +146,7 @@ runs:
     - name: 'Install dependencies'
       shell: bash
       run: |
-        sudo apt install -y build-essential git jq pkg-config cmake
+        sudo apt install -y build-essential git jq pkg-config cmake wget
         wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY}.tar.gz -O - |\
         tar xz && mv ${BINARY} /usr/local/bin/yq
 
