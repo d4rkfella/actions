@@ -146,7 +146,7 @@ runs:
     - name: 'Install dependencies'
       shell: bash
       run: |
-        sudo apt install -y build-essential git jq pkg-config 
+        sudo apt install -y build-essential git jq yq pkg-config
 
     - name: 'Install dependencies (bubblewrap)'
       shell: bash
