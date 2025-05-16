@@ -4,105 +4,105 @@ description: |
   the Melange repository is already configured.
 
 inputs:
+  version:
+    description: |
+      'Version of melange to install (tip, latest-release, v0.5.5, etc.)'
+    required: true
+    default: 'latest-release'
+  
   config:
     description: |
-      The config file to use for building the package.
+      'The config file to use for building the package.'
     default: .melange.yaml
 
   config-file-license:
     description: |
-      License to use for the melange config itself.
+      'License to use for the melange config itself.'
     default: Apache-2.0
 
   archs:
     description: |
-      The architectures to use.
+      'The architectures to use.'
     default: x86_64
 
   sign-with-temporary-key:
     description: |
-      Sign packages with a temporary key, useful for multi-stage
-      pipelines.
+      'Sign packages with a temporary key, useful for multi-stage pipelines.'
     default: false
 
   sign-with-key:
     description: |
-      Sign packages with a key, useful for multi-stage
-      pipelines.
+      'Sign packages with a key, useful for multi-stage pipelines.'
     default: false
 
   signing-key-path:
     description: |
-      The path for the signing key if signing is enabled.
+      'The path for the signing key if signing is enabled.'
     default: ''
 
   repository-path:
     description: |
-      The path of the repository being constructed by Melange.
+      'The path of the repository being constructed by Melange.'
     default: ${{ github.workspace }}/packages
 
   tests-repository-append:
     description: |
-      A list of paths or URIs of repositories that should be
-      implicitly included in the test environment.
+      'A list of paths or URIs of repositories that should be implicitly included in the test environment.'
     default: ''
 
   repository-append:
     description: |
-      A list of paths or URIs of repositories that should be
-      implicitly included in the build environment.
+      'A list of paths or URIs of repositories that should be implicitly included in the build environment.'
     default: ''
 
   tests-keyring-append:
     description: |
-      A list of paths or URIs of keys that should be included
-      in the test environment.
+      'A list of paths or URIs of keys that should be included in the test environment.'
     default: ''
 
   keyring-append:
     description: |
-      A list of paths or URIs of keys that should be included
-      in the build environment.
+      'A list of paths or URIs of keys that should be included in the build environment.'
     default: ''
 
   workspace-dir:
     description: |
-      The directory to use as the workspace.
+      'The directory to use as the workspace.'
     default: ''
 
   namespace:
     description: |
-      Namespace string to use in SBOM purls identifying built packages (eg wolfi, alpine)
+      'Namespace string to use in SBOM purls identifying built packages (eg wolfi, alpine)'
     default: ''
 
   empty-workspace:
     description: |
-      Whether to use an empty workspace or not.
+      'Whether to use an empty workspace or not.'
     default: false
 
   source-dir:
     description: |
-      The source directory to use if empty-workspace is false.
+      'The source directory to use if empty-workspace is false.'
     default: ${{ github.workspace }}
 
   cache-dir:
     description: |
-      Directory used for cached inputs.
+      'Directory used for cached inputs.'
     default: ''
 
   pipeline-dir:
     description: |
-      Directory used for pipelines.
+      'Directory used for pipelines.'
     default: ${{ github.workspace }}/pipelines
 
   git-commit:
     description: |
-      Commit hash of the git repository containing the build config file.
+      'Commit hash of the git repository containing the build config file.'
     default: ''
 
   git-repo-url:
     description: |
-      URL of the git repository containing the build config file.
+      'URL of the git repository containing the build config file.'
     default: ''
 
   commit-date:
@@ -132,6 +132,95 @@ runs:
           echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
           exit 1
         fi
+
+    - name: 'Install qemu emulator binaries'
+      shell: bash
+      run: |
+        sudo apt update && sudo apt install -y qemu-user-static
+    
+    - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      with:
+        go-version: '1.24'
+        check-latest: true
+    
+    - name: 'Install dependencies'
+      shell: bash
+      run: |
+        sudo apt install -y build-essential git jq
+
+    - name: 'Install dependencies (bubblewrap)'
+      shell: bash
+      run: |
+        sudo apt install -y libcap-dev meson ninja-build
+        git clone https://github.com/containers/bubblewrap
+        pushd bubblewrap
+        meson --prefix=/usr -Drequire_userns=true . output
+        cd output
+        ninja
+        sudo ninja install
+        popd
+        rm -rf bubblewrap
+
+    - name: 'Install melange'
+      if:
+      shell: bash
+      run: |
+        set -ex
+
+        # Install melange:
+        # - if version is "tip", install from tip of main.
+        # - if version is "latest-release", look up latest release.
+        # - otherwise, install the specified version.
+        case ${{ inputs.version }} in
+        tip)
+          TMP_CLONE_DIR="$(mktemp -d)"
+          git clone https://github.com/chainguard-dev/melange "${TMP_CLONE_DIR}"
+          pushd "${TMP_CLONE_DIR}"
+          make melange
+          sudo env "PATH=$PATH" make install
+          popd
+          rm -rf "${TMP_CLONE_DIR}"
+          ;;
+        latest-release)
+          # fetch the latest 20 releases, we need to filter by the ones that have assets.
+          releases=$(curl -s -u "username:${{ github.token }}" https://api.github.com/repos/chainguard-dev/melange/releases?per_page=20)
+
+          # search for the first release that has assets.
+          tag=$(echo $releases | jq -r 'first(.[] | select(.assets | length > 0) | .tag_name)')
+          if [[ -z ${tag} ]]; then
+            # this should, ideally, never happen.
+            echo "No melange release with assets found"
+            exit 1
+          fi
+          ;;
+        *)
+          tag="${{ inputs.version }}"
+        esac
+
+        if [[ ! -z ${tag} ]]; then
+          case "$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" in
+          x86|x64) ARCH=amd64;;
+          arm64)   ARCH=arm64;;
+          *)
+            echo Unsupported RUNNER_ARCH \"$RUNNER_ARCH\"
+            exit -1
+            ;;
+          esac
+          case "$(echo $RUNNER_OS | awk '{print tolower($0)}')" in
+          "linux") OS=linux;;
+          "macos") OS=osx;;
+          *)
+            echo Unsupported RUNNER_OS \"$RUNNER_OS\"
+            exit -1
+            ;;
+          esac
+
+          without_v=${tag#"v"}
+          echo "Installing melange @ ${tag}"
+          curl -fsL https://github.com/chainguard-dev/melange/releases/download/${tag}/melange_${without_v}_${OS}_${ARCH}.tar.gz | sudo tar xzf - --strip-components=1 -C /usr/local/bin
+        fi
+
+        melange version
 
     - name: Extract commit date from first git-checkout step
       id: commit-date
@@ -165,7 +254,7 @@ runs:
       if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
       shell: bash
       run: |
-        docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" cgr.dev/chainguard/melange keygen "${{ inputs.signing-key-path }}"
+        melange keygen "${{ inputs.signing-key-path }}"
 
     - name: Set signing key from secret
       if: ${{ inputs.sign-with-key == 'true' && inputs.signing-key-path != '' }}
@@ -214,8 +303,7 @@ runs:
           args+=(--signing-key "${{ inputs.signing-key-path }}")
         fi
 
-        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-          cgr.dev/chainguard/melange "${args[@]}"
+        melange "${args[@]}"
 
     - name: Check config if build is reproducible
       id: is_reproducible
@@ -246,8 +334,7 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
         
-        docker run --privileged --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-          cgr.dev/chainguard/melange "${args[@]}"
+        melange "${args[@]}"
     
     - name: Test package and merge Index
       shell: bash
@@ -280,15 +367,13 @@ runs:
         if curl --output /dev/null --silent --head --fail "$artifactory_url"; then
           echo "Merging with existing APKINDEX from Artifactory..."
           curl -L -o "${{ github.workspace }}"/APKINDEX.tar.gz "$artifactory_url"
-          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" -w "${{ github.workspace }}" \
-            cgr.dev/chainguard/melange index \
+          melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk \
             --source "${{ github.workspace }}"/APKINDEX.tar.gz --merge
         else
           echo "Creating new APKINDEX..."
-          docker run --rm -v "${{ github.workspace }}:${{ github.workspace }}" \
-            cgr.dev/chainguard/melange index \
+          melange index \
             --signing-key "${{ inputs.signing-key-path }}" \
             --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
         fi 
