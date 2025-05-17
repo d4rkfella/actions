@@ -127,10 +127,10 @@ runs:
           exit 1
         fi
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
-      with:
-        platforms: linux/amd64,linux/arm64
+    - name: Install QUEMU
+      shell: bash
+      run: |
+        apk add qemu --no-cache
     
     - name: Extract commit date from first git-checkout step
       id: commit-date
