@@ -130,7 +130,7 @@ runs:
     - name: Install QUEMU
       shell: bash
       run: |
-        apk add qemu --no-cache
+        sudo apk add qemu --no-cache
     
     - name: Extract commit date from first git-checkout step
       id: commit-date
