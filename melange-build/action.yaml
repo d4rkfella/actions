@@ -126,6 +126,11 @@ runs:
           echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
           exit 1
         fi
+
+    - name: 'Install qemu emulator binaries'
+      shell: bash
+      run: |
+        sudo apt update && sudo apt install -y qemu-user-static
     
     - name: Extract commit date from first git-checkout step
       id: commit-date
