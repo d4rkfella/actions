@@ -291,6 +291,6 @@ runs:
       shell: bash
       run: |
     
-        jfrog-cli c add --url "${{ inputs.artifactory-url}}" --access-token "${{ inputs.artifactory-access-token}}" --interactive=false
+        jf c add --url "${{ inputs.artifactory-url}}" --access-token "${{ inputs.artifactory-access-token}}" --interactive=false
         
         cd "${{ inputs.repository-path }}" && jfrog-cli rt upload "./" "${{ inputs.artifactory-repository-path }}/" --recursive
