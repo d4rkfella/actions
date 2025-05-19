@@ -246,7 +246,7 @@ runs:
       run: |
         sudo chown -R runner:runner ${{ inputs.repository-path }}
     
-    - name: Test package and merge Index
+    - name: Test package
       shell: bash
       run: |
         args=()
@@ -270,24 +270,41 @@ runs:
     
         sudo melange "${args[@]}"
     
-        apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
-        artifactory_url="${{ inputs.artifactory-url }}/artifactory/${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
+    - name: 'Create signed APKINDEX'
+      shell: bash
+      run: |
+        IFS=',' read -ra ARCH_ARRAY <<< "${{ inputs.archs }}"
     
-        if curl --output /dev/null --silent --head --fail "$artifactory_url"; then
-          echo "Merging with existing APKINDEX from Artifactory..."
-          curl -L -o "${{ github.workspace }}"/APKINDEX.tar.gz "$artifactory_url"
-          melange index \
-            --signing-key "${{ inputs.signing-key-path }}" \
-            --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk \
-            --source "${{ github.workspace }}"/APKINDEX.tar.gz --merge
-        else
-          echo "Creating new APKINDEX..."
-          melange index \
-            --signing-key "${{ inputs.signing-key-path }}" \
-            --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk
-        fi 
+        for arch in "${ARCH_ARRAY[@]}"; do
+          echo "Processing architecture: $arch"
+    
+          apkindex_path="${{ inputs.repository-path }}/$arch/APKINDEX.tar.gz"
+          artifactory_url="${{ inputs.artifactory-url }}/artifactory/${{ inputs.artifactory-repository-path }}/$arch/APKINDEX.tar.gz"
+    
+          if curl --output /dev/null --silent --head --fail "$artifactory_url"; then
+            echo "Merging with existing APKINDEX for $arch..."
+            curl -L -o "${{ github.workspace }}"/APKINDEX-$arch.tar.gz "$artifactory_url"
+            melange index \
+              --signing-key "${{ inputs.signing-key-path }}" \
+              --output "$apkindex_path" "${{ inputs.repository-path }}/$arch"/*.apk \
+              --source "${{ github.workspace }}"/APKINDEX-$arch.tar.gz \
+              --merge \
+              --arch "$arch"
+          else
+            echo "Creating new APKINDEX for $arch..."
+            melange index \
+              --signing-key "${{ inputs.signing-key-path }}" \
+              --output "$apkindex_path" "${{ inputs.repository-path }}/$arch"/*.apk \
+              --arch "$arch"
+          fi
+          
+          if [ ! -f "$apkindex_path" ]; then
+            echo "::error::Failed to create APKINDEX for $arch"
+            exit 1
+          fi
+        done
   
-    - name: 'Upload packages to Artifactory'
+    - name: 'Upload package to Artifactory'
       shell: bash
       run: |
     
