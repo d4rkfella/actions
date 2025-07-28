@@ -304,7 +304,10 @@ runs:
           --interactive=false
     
         cd "${{ inputs.repository-path }}"
-        jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" --recursive
+        jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" \
+          --recursive \
+          --build-name="$build_name" \
+          --build-number="$build_number"
         cd -
     
         jf rt build-collect-env "$build_name" "$build_number"
