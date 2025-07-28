@@ -302,6 +302,8 @@ runs:
         # Upload packages without build metadata in the URL
         cd "${{ inputs.repository-path }}"
         jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" --recursive
+
+        cd -
     
         # Associate build environment, VCS info, and uploaded artifacts
         jf rt build-collect-env "$build_name" "$build_number"
