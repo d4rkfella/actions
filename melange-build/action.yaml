@@ -308,7 +308,5 @@ runs:
         # Associate build environment, VCS info, and uploaded artifacts
         jf rt build-collect-env "$build_name" "$build_number"
         jf rt build-add-git "$build_name" "$build_number" .
-        jf rt build-add "$build_name" "$build_number"
-    
         # Publish build info to Artifactory
         jf rt build-publish "$build_name" "$build_number"
