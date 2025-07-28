@@ -289,9 +289,13 @@ runs:
     - name: 'Upload package and publish build info to Artifactory'
       shell: bash
       run: |
-        # Sanitize build name to avoid slashes and dots
-        sanitized_package=$(echo "${{ matrix.packages }}" | tr '/.' '--')
-        build_name="melange-${sanitized_package}-${{ matrix.arch }}"
+        melange_file="${{ matrix.packages }}"
+
+        pkg_name=$(yq '.package.name' "$melange_file")
+        version=$(yq '.package.version' "$melange_file" | tr -d '"')
+        epoch=$(yq '.package.epoch' "$melange_file")
+        
+        build_name="${pkg_name}-${version}-r${epoch}-${{ matrix.arch }}"
         build_number="${{ github.run_id }}"
 
         jf c add artifactory \
