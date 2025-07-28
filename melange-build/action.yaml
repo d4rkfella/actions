@@ -289,24 +289,27 @@ runs:
     - name: 'Upload package and publish build info to Artifactory'
       shell: bash
       run: |
-    
         build_name="melange-${{ matrix.packages }}-${{ matrix.arch }}"
         build_number="${{ github.run_id }}"
     
-        # Configure JFrog CLI (once)
         jf c add artifactory \
           --url="${{ inputs.artifactory-url }}" \
           --access-token="${{ inputs.artifactory-access-token }}" \
           --interactive=false
     
-        # Upload packages without build metadata in the URL
         cd "${{ inputs.repository-path }}"
-        jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" --recursive
-
-        cd -
     
-        # Associate build environment, VCS info, and uploaded artifacts
+        # Upload package artifacts and associate them with the build
+        jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" \
+          --recursive \
+          --build-name="$build_name" \
+          --build-number="$build_number"
+    
+        # Collect environment variables
         jf rt build-collect-env "$build_name" "$build_number"
+    
+        # Optionally collect Git info (if .git exists)
         jf rt build-add-git "$build_name" "$build_number" .
-        # Publish build info to Artifactory
+    
+        # Finally, publish build info
         jf rt build-publish "$build_name" "$build_number"
