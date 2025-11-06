@@ -280,7 +280,7 @@ runs:
     - name: 'Upload package and publish build info to Artifactory'
       shell: bash
       run: |
-        jf ping
+        jf rt ping
         
         melange_file="${{ matrix.packages }}"
 
@@ -292,12 +292,3 @@ runs:
           --recursive
         cd -
     
-        jf rt bce "$build_name" "$build_number"
-    
-        if [ -d .git ]; then
-          jf rt bag "$build_name" "$build_number" .
-        else
-          echo "Warning: .git directory not found, skipping build-add-git"
-        fi
-    
-        f rt bp "$build_name" "$build_number"
