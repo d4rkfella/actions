@@ -190,7 +190,7 @@ runs:
       run: |
         args=()
         args+=(build "${{ inputs.config }}")
-        args+=(--license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
+        args+=(--generate-index false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
 
         if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
