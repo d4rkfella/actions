@@ -99,7 +99,7 @@ inputs:
       'URL of the git repository containing the build config file.'
     default: ''
 
-  commit-date:
+  build-date:
     default: true
 
   artifactory-url:
@@ -134,33 +134,13 @@ runs:
         JF_ACCESS_TOKEN: ${{ inputs.artifactory-access-token }}
 
     
-    - name: Extract commit date from first git-checkout step
+    - name: Set build date to current time
       id: commit-date
-      if: ${{ inputs.commit-date == 'true' }}
+      if: ${{ inputs.build-date == 'true' }}
       shell: bash
       run: |
-        EXPECTED_COMMIT=$(yq '.pipeline[] | select(.uses == "git-checkout") | .with["expected-commit"]' "${{ inputs.config }}" | head -n 1)
-        REPO_URL=$(yq '.pipeline[] | select(.uses == "git-checkout") | .with["repository"]' "${{ inputs.config }}" | head -n 1)
-        
-        if [[ -z "$EXPECTED_COMMIT" || -z "$REPO_URL" ]]; then
-          echo "No git-checkout step or expected-commit found. Skipping commit date extraction."
-          echo "commit-date=" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-        
-        REPO=$(echo "$REPO_URL" | sed -E 's#https://github.com/([^/]+/[^/]+)(\.git)?#\1#')
-        
-        COMMIT_DATE=$(curl -s \
-          "https://api.github.com/repos/$REPO/commits/$EXPECTED_COMMIT" \
-          | jq -r '.commit.committer.date')     
-        
-        if [[ "$COMMIT_DATE" == "null" || -z "$COMMIT_DATE" ]]; then
-          echo "Unable to retrieve commit date from GitHub API for $REPO@$EXPECTED_COMMIT"
-          echo "commit-date=" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-  
-        echo "commit-date=$COMMIT_DATE" >> "$GITHUB_OUTPUT"
+        CURRENT_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        echo "commit-date=$CURRENT_DATE" >> "$GITHUB_OUTPUT"
 
     - name: Generate temporary signing key
       if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
@@ -277,7 +257,49 @@ runs:
     
         sudo melange "${args[@]}"
     
-    - name: 'Upload package to Artifactory'
+    - name: 'Upload artifact'
       shell: bash
       run: |
-        jf rt upload "${{ inputs.repository-path }}/*" "${{ inputs.artifactory-repository-path }}/"
+        cd "${{ inputs.repository-path }}/${{ inputs.archs }}"
+        jf rt upload ./*.apk "${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/"
+
+    - name: Create artifact digest
+      id: create_artifact_digest
+      shell: bash
+      run: |
+        CONFIG="${{ inputs.config }}"
+        REPO_PATH="${{ inputs.repository-path }}"
+        ARCH="${{ inputs.archs }}"
+
+        PKG_NAME=$(yq -r '.package.name' "$CONFIG")
+        PKG_VERSION=$(yq -r '.package.version' "$CONFIG")
+        PKG_EPOCH=$(yq -r '.package.epoch // 0' "$CONFIG")
+
+        ARTIFACT_FILENAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_EPOCH}.apk"
+        LOCAL_ARTIFACT_PATH="${REPO_PATH}/${ARCH}/${ARTIFACT_FILENAME}"
+
+        if [[ ! -f "$LOCAL_ARTIFACT_PATH" ]]; then
+          echo "❌ Error: Expected artifact not found at $LOCAL_ARTIFACT_PATH"
+          echo "Listing available files for debugging:"
+          ls -al "${REPO_PATH}/${ARCH}" || true
+          exit 1
+        fi
+
+        ARTIFACT_DIGEST=$(sha256sum "$LOCAL_ARTIFACT_PATH" | awk '{print "sha256:"$1}')
+
+        echo "artifact_filename=$ARTIFACT_FILENAME" >> "$GITHUB_OUTPUT"
+        echo "artifact_digest=$ARTIFACT_DIGEST" >> "$GITHUB_OUTPUT"
+
+    - name: Create attestation
+      uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
+      with:
+        subject-digest: ${{ steps.create_artifact_digest.outputs.artifact_digest }}
+        subject-name: >-
+          ${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/${{ steps.create_artifact_digest.outputs.artifact_name }}
+        predicate-type: "https://example.com/attestations/custom-review-v1"
+        predicate: |
+          {
+            "creationTime": "${{ github.event.repository.pushed_at }}",
+            "reviewer": "darkfella",
+            "repository": "${{ github.repository }}"
+          }
