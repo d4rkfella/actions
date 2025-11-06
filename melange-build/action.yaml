@@ -126,6 +126,13 @@ runs:
           echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
           exit 1
         fi
+
+    - name: Setup JFrog CLI
+      uses: jfrog/setup-jfrog-cli@5b06f730cc5a6f55d78b30753f8583454b08c0aa #v4.8.1
+      env:
+        JF_URL: "${{ inputs.artifactory-url }}"
+      with:
+        oidc-provider-name: setup-jfrog-cli
     
     - name: Extract commit date from first git-checkout step
       id: commit-date
