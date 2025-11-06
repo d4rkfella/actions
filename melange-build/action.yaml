@@ -280,4 +280,4 @@ runs:
     - name: 'Upload package to Artifactory'
       shell: bash
       run: |
-        jf rt upload "${{ inputs.repository-path }}/" "${{ inputs.artifactory-repository-path }}/" --recursive
+        jf rt upload "${{ inputs.repository-path }}/*" "${{ inputs.artifactory-repository-path }}/"
