@@ -295,7 +295,7 @@ runs:
       with:
         subject-digest: ${{ steps.create_artifact_digest.outputs.artifact_digest }}
         subject-name: >-
-          ${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/${{ steps.create_artifact_digest.outputs.artifact_name }}
+          ${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
         predicate-type: "https://example.com/attestations/custom-review-v1"
         predicate: |
           {
