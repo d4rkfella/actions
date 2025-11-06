@@ -280,12 +280,13 @@ runs:
     - name: 'Upload package and publish build info to Artifactory'
       shell: bash
       run: |
+        jf ping
+        
         melange_file="${{ matrix.packages }}"
 
         pkg_name=$(yq '.package.name' "$melange_file")
         version=$(yq '.package.version' "$melange_file" | tr -d '"')
         epoch=$(yq '.package.epoch' "$melange_file")
-  
         cd "${{ inputs.repository-path }}"
         jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" \
           --recursive
