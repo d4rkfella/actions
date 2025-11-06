@@ -34,9 +34,9 @@ inputs:
       'The path for the signing key if signing is enabled.'
     default: ''
 
-  repository-path:
+  output-path:
     description: |
-      'The path of the repository being constructed by Melange.'
+      'Directory where packages will be output.'
     default: ${{ github.workspace }}/packages
 
   tests-repository-append:
@@ -170,7 +170,7 @@ runs:
       run: |
         args=()
         args+=(build "${{ inputs.config }}")
-        args+=(--generate-index=false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
+        args+=(--generate-index=false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.output-path }}")
 
         if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
@@ -214,7 +214,7 @@ runs:
       shell: bash
       run: |
         args=()
-        args+=(rebuild "${{ inputs.repository-path }}"/"${{ inputs.archs }}"/*.apk)
+        args+=(rebuild "${{ inputs.output-path }}"/"${{ inputs.archs }}"/*.apk)
 
         if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
           args+=(--signing-key "${{ inputs.signing-key-path }}")
@@ -231,7 +231,7 @@ runs:
     - name: 'Fix local repository permissions'
       shell: bash
       run: |
-        sudo chown -R runner:runner ${{ inputs.repository-path }}
+        sudo chown -R runner:runner ${{ inputs.output-path }}
     
     - name: Test package
       shell: bash
@@ -239,8 +239,8 @@ runs:
         args=()
         args+=(test "${{ inputs.config }}" --arch "${{ inputs.archs }}" --test-package-append busybox)
     
-        if [[ -d "${{ inputs.repository-path }}" ]]; then
-          args+=(--repository-append "${{ inputs.repository-path }}")
+        if [[ -d "${{ inputs.output-path }}" ]]; then
+          args+=(--repository-append "${{ inputs.output-path }}")
           args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
         fi
     
@@ -260,7 +260,7 @@ runs:
     - name: 'Upload artifact'
       shell: bash
       run: |
-        cd "${{ inputs.repository-path }}/${{ inputs.archs }}"
+        cd "${{ inputs.output-path }}/${{ inputs.archs }}"
         jf rt upload ./*.apk "${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/"
 
     - name: Create artifact digest
@@ -268,7 +268,7 @@ runs:
       shell: bash
       run: |
         CONFIG="${{ inputs.config }}"
-        REPO_PATH="${{ inputs.repository-path }}"
+        OUTPUT_PATH="${{ inputs.output-path }}"
         ARCH="${{ inputs.archs }}"
 
         PKG_NAME=$(yq -r '.package.name' "$CONFIG")
@@ -276,7 +276,7 @@ runs:
         PKG_EPOCH=$(yq -r '.package.epoch // 0' "$CONFIG")
 
         ARTIFACT_FILENAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_EPOCH}.apk"
-        LOCAL_ARTIFACT_PATH="${REPO_PATH}/${ARCH}/${ARTIFACT_FILENAME}"
+        LOCAL_ARTIFACT_PATH="${OUTPUT_PATH}/${ARCH}/${ARTIFACT_FILENAME}"
 
         if [[ ! -f "$LOCAL_ARTIFACT_PATH" ]]; then
           echo "❌ Error: Expected artifact not found at $LOCAL_ARTIFACT_PATH"
