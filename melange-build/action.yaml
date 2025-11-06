@@ -190,7 +190,7 @@ runs:
       run: |
         args=()
         args+=(build "${{ inputs.config }}")
-        args+=(--generate-index false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
+        args+=(--generate-index=false --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.repository-path }}")
 
         if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
@@ -277,18 +277,7 @@ runs:
     
         sudo melange "${args[@]}"
     
-    - name: 'Upload package and publish build info to Artifactory'
+    - name: 'Upload package to Artifactory'
       shell: bash
       run: |
-        jf rt ping
-        
-        melange_file="${{ matrix.packages }}"
-
-        pkg_name=$(yq '.package.name' "$melange_file")
-        version=$(yq '.package.version' "$melange_file" | tr -d '"')
-        epoch=$(yq '.package.epoch' "$melange_file")
-        cd "${{ inputs.repository-path }}"
-        jf rt upload "./" "${{ inputs.artifactory-repository-path }}/" \
-          --recursive
-        cd -
-    
+        jf rt upload "${{ inputs.repository-path }}/" "${{ inputs.artifactory-repository-path }}/" --recursive
