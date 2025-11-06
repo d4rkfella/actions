@@ -270,22 +270,6 @@ runs:
     
         sudo melange "${args[@]}"
     
-    - name: 'Merge APKINDEX'
-      shell: bash
-      run: |
-        apkindex_path="${{ inputs.repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
-        artifactory_url="${{ inputs.artifactory-url }}/artifactory/${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/APKINDEX.tar.gz"
-
-        if curl --output /dev/null --silent --head --fail "$artifactory_url"; then
-          echo "Merging with existing APKINDEX from Artifactory..."
-          curl -L -o "${{ github.workspace }}"/APKINDEX.tar.gz "$artifactory_url"
-          melange index \
-            --signing-key "${{ inputs.signing-key-path }}" \
-            --output "$apkindex_path" "${{ inputs.repository-path }}/${{ inputs.archs }}"/*.apk \
-            --source "${{ github.workspace }}"/APKINDEX.tar.gz \
-            --merge
-        fi
-  
     - name: 'Upload package and publish build info to Artifactory'
       shell: bash
       run: |
