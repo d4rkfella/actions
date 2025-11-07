@@ -27,7 +27,7 @@ inputs:
 
   signing-key-path:
     description: |
-      'The path for the signing key if signing is enabled.'
+      'The filepath of the signing key file. Only configure this value if signing is set to true.'
     default: ''
 
   output-dir:
@@ -60,9 +60,9 @@ inputs:
       'The directory to use as the workspace.'
     default: ''
 
-  namespace:
+  maintainer:
     description: |
-      'Namespace string to use in SBOM purls identifying built packages (eg wolfi, alpine)'
+      'Namespace string to use in SBOM purls identifying the maintainer of the artifact'
     default: ''
 
   empty-workspace:
@@ -100,11 +100,11 @@ inputs:
 
   artifactory-url:
     default: ''
+
+  artifactory-url-path:
+    default: ''
   
   artifactory-access-token:
-    default: ''
-
-  artifactory-repository-path:
     default: ''
 
 runs:
@@ -133,6 +133,10 @@ runs:
       shell: bash
       run: |
         PKG_NAME=$(yq -r '.package.name' "${{ inputs.config }}")
+        PKG_VERSION=$(yq -r '.package.version' "${{ inputs.config }}")
+        PKG_EPOCH=$(yq -r '.package.epoch // 0' "${{ inputs.config }}")
+
+        echo ARTIFACT_NAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_EPOCH}" >> "$GITHUB_ENV"
         echo "JFROG_CLI_BUILD_NAME=$PKG_NAME" >> "$GITHUB_ENV"
     
     - name: Set build date
@@ -169,7 +173,7 @@ runs:
       shell: bash
       run: |
         args=()
-        args+=(build "${{ inputs.config }}" --package-append busybox --license "${{ inputs.config-file-license }}" --arch "${{ inputs.arch }}" --out-dir "${{ inputs.output-dir }}")
+        args+=(build "${{ inputs.config }}" --generate-provenance=true --package-append busybox --license "${{ inputs.config-file-license }}" --arch "${{ inputs.arch }}" --out-dir "${{ inputs.output-dir }}")
 
         if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
@@ -177,7 +181,7 @@ runs:
         fi
         
         [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
-        [ -n "${{ inputs.namespace }}" ] && args+=(--namespace "${{ inputs.namespace }}")
+        [ -n "${{ inputs.namespace }}" ] && args+=(--namespace "${{ inputs.maintainer }}")
         [ -n "${{ inputs.cache-dir }}" ] && args+=(--cache-dir "${{ inputs.cache-dir }}")
         [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dir "${{ inputs.pipeline-dir }}")
         [ -n "${{ inputs.git-commit }}" ] && args+=(--git-commit "${{ inputs.git-commit }}")
@@ -196,7 +200,7 @@ runs:
 
         sudo melange "${args[@]}"
 
-    - name: Check config if build is reproducible
+    - name: Check for reproducible build flag
       id: is_reproducible
       shell: bash
       run: |
@@ -206,6 +210,7 @@ runs:
           REPRODUCIBLE="true"
         fi
 
+        echo "REPRODUCIBLE=$REPRODUCIBLE" >> $GITHUB_ENV
         echo "reproducible=$REPRODUCIBLE" >> $GITHUB_OUTPUT
 
     - name: Rebuild package
@@ -227,7 +232,7 @@ runs:
         
         sudo melange "${args[@]}"
 
-    - name: 'Fix output path permissions'
+    - name: Fix output path permissions
       shell: bash
       run: |
         sudo chown -R runner:runner ${{ inputs.output-dir }}
@@ -256,45 +261,47 @@ runs:
     
         sudo melange "${args[@]}"
     
-    - name: 'Upload artifact'
+    - name: Upload artifact
       shell: bash
       run: |
-        cd "${{ inputs.output-dir }}/${{ inputs.arch }}"
-        jf rt upload "*.apk" "${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/"
+        pushd "${{ inputs.output-dir }}/${{ inputs.arch }}"
+        jf rt upload "$ARTIFACT_NAME.apk" "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$ARTIFACT_NAME.apk"
 
     - name: Create artifact digest
       id: create_artifact_digest
       shell: bash
       run: |
-        CONFIG="${{ inputs.config }}"
-        OUTPUT_PATH="${{ inputs.output-dir }}"
-        ARCH="${{ inputs.arch }}"
+        ARTIFACT_PATH="${{ inputs.output-dir }}/${{ inputs.arch }}/$ARTIFACT_NAME.apk"
+        DIGEST=$(sha256sum "$ARTIFACT_PATH" | awk '{print "sha256:"$1}')
+        echo "ARTIFACT_DIGEST=$DIGEST" >> "$GITHUB_ENV"
 
-        PKG_NAME=$(yq -r '.package.name' "$CONFIG")
-        PKG_VERSION=$(yq -r '.package.version' "$CONFIG")
-        PKG_EPOCH=$(yq -r '.package.epoch // 0' "$CONFIG")
+    - name: Extract SLSA provenance
+      id: extract_prov
+      shell: bash
+      run: |
+        PROVENANCE_FILEPATH="${{ inputs.output-dir }}/${{ inputs.arch }}/$ARTIFACT_NAME.attest.tar"
 
-        ARTIFACT_FILENAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_EPOCH}.apk"
-        LOCAL_ARTIFACT_PATH="${OUTPUT_PATH}/${ARCH}/${ARTIFACT_FILENAME}"
-
-        if [[ ! -f "$LOCAL_ARTIFACT_PATH" ]]; then
-          echo "❌ Error: Expected artifact not found at $LOCAL_ARTIFACT_PATH"
-          echo "Listing available files for debugging:"
-          ls -al "${REPO_PATH}/${ARCH}" || true
+        if [[ ! -f "$PROVENANCE_FILEPATH" ]]; then
+          echo "❌ No attestation archive found at $PROVENANCE_FILEPATH"
           exit 1
         fi
 
-        ARTIFACT_DIGEST=$(sha256sum "$LOCAL_ARTIFACT_PATH" | awk '{print "sha256:"$1}')
+        mkdir -p "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
+        tar -xf "$PROVENANCE_FILEPATH" -C "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
 
-        echo "artifact_filename=$ARTIFACT_FILENAME" >> "$GITHUB_OUTPUT"
-        echo "artifact_digest=$ARTIFACT_DIGEST" >> "$GITHUB_OUTPUT"
+        if [[ ! -f "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations/$ARTIFACT_NAME.attestation" ]]; then
+          echo "❌ Failed to find the extracted SLSA attestation file"
+          exit 1
+        fi
 
-    - name: Create attestation
+        echo "slsa_provenance_path=$ARTIFACT_NAME.attestation" >> $GITHUB_OUTPUT
+
+    - name: Create custom attestation
       uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
       with:
-        subject-digest: ${{ steps.create_artifact_digest.outputs.artifact_digest }}
+        subject-digest: "$ARTIFACT_DIGEST"
         subject-name: >-
-          ${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
+          "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$ARTIFACT_NAME.apk"
         predicate-type: "https://example.com/attestations/custom-review-v1"
         predicate: |
           {
@@ -302,3 +309,12 @@ runs:
             "reviewer": "darkfella",
             "repository": "${{ github.repository }}"
           }
+
+    - name: Create SLSA v1.0 attestation
+      uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
+      with:
+        subject-name: >-
+          ${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
+        subject-digest: ${{ steps.create_artifact_digest.outputs.artifact_digest }}
+        predicate-type: https://slsa.dev/provenance/v1
+        predicate-path: ${{ steps.extract_prov.outputs.slsa_provenance_path }}
