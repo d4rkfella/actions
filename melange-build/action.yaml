@@ -7,7 +7,7 @@ inputs:
   config:
     description: |
       'The config file to use for building the package.'
-    default: .melange.yaml
+    default: ./melange.yaml
 
   config-file-license:
     description: |
