@@ -169,8 +169,7 @@ runs:
       shell: bash
       run: |
         args=()
-        args+=(build "${{ inputs.config }}")
-        args+=(--package-append busybox --license "${{ inputs.config-file-license }}" --arch "${{ inputs.arch }}" --out-dir "${{ inputs.output-dir }}")
+        args+=(build "${{ inputs.config }}" --package-append busybox --license "${{ inputs.config-file-license }}" --arch "${{ inputs.arch }}" --out-dir "${{ inputs.output-dir }}")
 
         if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
