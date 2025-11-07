@@ -320,7 +320,7 @@ runs:
       uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
       with:
         subject-name: >-
-          ${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
+          "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ env.ARTIFACT_NAME }}.apk"
         subject-digest: ${{ env.ARTIFACT_DIGEST }}
         predicate-type: https://slsa.dev/provenance/v1
         predicate-path: ${{ steps.extract_prov.outputs.slsa_provenance_path }}
