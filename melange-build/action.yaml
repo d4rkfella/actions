@@ -14,19 +14,15 @@ inputs:
       'License to use for the melange config itself.'
     default: Apache-2.0
 
-  archs:
+  arch:
     description: |
-      'The architectures to use.'
+      'Architecture to build for.'
     default: x86_64
 
   sign-with-temporary-key:
-    description: |
-      'Sign packages with a temporary key, useful for multi-stage pipelines.'
     default: false
 
   sign-with-key:
-    description: |
-      'Sign packages with a key, useful for multi-stage pipelines.'
     default: false
 
   signing-key-path:
@@ -34,7 +30,7 @@ inputs:
       'The path for the signing key if signing is enabled.'
     default: ''
 
-  output-path:
+  output-dir:
     description: |
       'Directory where packages will be output.'
     default: ${{ github.workspace }}/packages
@@ -134,13 +130,11 @@ runs:
         JF_ACCESS_TOKEN: ${{ inputs.artifactory-access-token }}
 
     
-    - name: Set build date to current time
+    - name: Set build date
       id: build-date
       if: ${{ inputs.build-date == 'true' }}
-      shell: bash
       run: |
-        CURRENT_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        echo "build-date=$CURRENT_DATE" >> "$GITHUB_OUTPUT"
+        echo "build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
 
     - name: Generate temporary signing key
       if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
@@ -170,7 +164,7 @@ runs:
       run: |
         args=()
         args+=(build "${{ inputs.config }}")
-        args+=(--package-append busybox --license "${{ inputs.config-file-license }}" --arch "${{ inputs.archs }}" --out-dir "${{ inputs.output-path }}")
+        args+=(--package-append busybox --license "${{ inputs.config-file-license }}" --arch "${{ inputs.arch }}" --out-dir "${{ inputs.output-dir }}")
 
         if [[ "${{ steps.check_config_repos.outputs.has_config_repos }}" == "false" ]]; then
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
@@ -214,7 +208,7 @@ runs:
       shell: bash
       run: |
         args=()
-        args+=(rebuild "${{ inputs.output-path }}"/"${{ inputs.archs }}"/*.apk)
+        args+=(rebuild "${{ inputs.output-dir }}"/"${{ inputs.arch }}"/*.apk)
 
         if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
           args+=(--signing-key "${{ inputs.signing-key-path }}")
@@ -228,19 +222,19 @@ runs:
         
         sudo melange "${args[@]}"
 
-    - name: 'Fix local repository permissions'
+    - name: 'Fix output path permissions'
       shell: bash
       run: |
-        sudo chown -R runner:runner ${{ inputs.output-path }}
+        sudo chown -R runner:runner ${{ inputs.output-dir }}
     
     - name: Test package
       shell: bash
       run: |
         args=()
-        args+=(test "${{ inputs.config }}" --arch "${{ inputs.archs }}" --test-package-append busybox)
+        args+=(test "${{ inputs.config }}" --arch "${{ inputs.arch }}" --test-package-append busybox)
     
-        if [[ -d "${{ inputs.output-path }}" ]]; then
-          args+=(--repository-append "${{ inputs.output-path }}")
+        if [[ -d "${{ inputs.output-dir }}" ]]; then
+          args+=(--repository-append "${{ inputs.output-dir }}")
           args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
         fi
     
@@ -260,16 +254,16 @@ runs:
     - name: 'Upload artifact'
       shell: bash
       run: |
-        cd "${{ inputs.output-path }}/${{ inputs.archs }}"
-        jf rt upload ./*.apk "${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/"
+        cd "${{ inputs.output-dir }}/${{ inputs.arch }}"
+        jf rt upload ./*.apk "${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/"
 
     - name: Create artifact digest
       id: create_artifact_digest
       shell: bash
       run: |
         CONFIG="${{ inputs.config }}"
-        OUTPUT_PATH="${{ inputs.output-path }}"
-        ARCH="${{ inputs.archs }}"
+        OUTPUT_PATH="${{ inputs.output-dir }}"
+        ARCH="${{ inputs.arch }}"
 
         PKG_NAME=$(yq -r '.package.name' "$CONFIG")
         PKG_VERSION=$(yq -r '.package.version' "$CONFIG")
@@ -295,7 +289,7 @@ runs:
       with:
         subject-digest: ${{ steps.create_artifact_digest.outputs.artifact_digest }}
         subject-name: >-
-          ${{ inputs.artifactory-repository-path }}/${{ inputs.archs }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
+          ${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
         predicate-type: "https://example.com/attestations/custom-review-v1"
         predicate: |
           {
