@@ -288,13 +288,7 @@ runs:
 
         mkdir -p "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
         tar -xzf "$PROVENANCE_FILEPATH" -C "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
-
-        if [[ ! -f "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations/$ARTIFACT_NAME.attestation" ]]; then
-          echo "❌ Failed to find the extracted SLSA attestation file"
-          exit 1
-        fi
-
-        echo "slsa_provenance_path=$ARTIFACT_NAME.attestation" >> $GITHUB_OUTPUT
+        echo "slsa_provenance_path=${{ inputs.output-dir }}/${{ inputs.arch }}/attestations/$ARTIFACT_NAME.attestation" >> $GITHUB_OUTPUT
 
     - name: Create custom attestation
       uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
