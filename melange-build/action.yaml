@@ -322,5 +322,5 @@ runs:
         subject-name: >-
           ${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ env.ARTIFACT_NAME }}.apk
         subject-digest: ${{ env.ARTIFACT_DIGEST }}
-        predicate-type: https://example.com/provenance/melange-slsa-v1
+        predicate-type: https://chainguard.dev/provenance/slsa/v1
         predicate-path: ${{ steps.extract_prov.outputs.slsa_provenance_path }}
