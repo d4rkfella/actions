@@ -315,6 +315,6 @@ runs:
       with:
         subject-name: >-
           ${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ steps.create_artifact_digest.outputs.artifact_filename }}
-        subject-digest: ${{ steps.create_artifact_digest.outputs.artifact_digest }}
+        subject-digest: $ARTIFACT_DIGEST
         predicate-type: https://slsa.dev/provenance/v1
         predicate-path: ${{ steps.extract_prov.outputs.slsa_provenance_path }}
