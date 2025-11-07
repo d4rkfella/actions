@@ -324,3 +324,4 @@ runs:
         subject-digest: ${{ env.ARTIFACT_DIGEST }}
         predicate-type: https://slsa.dev/provenance/v1
         predicate-path: ${{ steps.extract_prov.outputs.slsa_provenance_path }}
+        push-to-registry: false
