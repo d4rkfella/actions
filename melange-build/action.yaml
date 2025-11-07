@@ -261,7 +261,7 @@ runs:
       shell: bash
       run: |
         cd "${{ inputs.output-dir }}/${{ inputs.arch }}"
-        jf rt upload ./*.apk "${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/"
+        jf rt upload "*.apk" "${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/"
 
     - name: Create artifact digest
       id: create_artifact_digest
