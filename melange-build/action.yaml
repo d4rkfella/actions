@@ -130,11 +130,13 @@ runs:
         JF_ACCESS_TOKEN: ${{ inputs.artifactory-access-token }}
 
     - name: Set global variables
+      shell: bash
       run: |
         PKG_NAME=$(yq -r '.package.name' "${{ inputs.config }}")
         echo "JFROG_CLI_BUILD_NAME=$PKG_NAME" >> "$GITHUB_ENV"
     
     - name: Set build date
+      shell: bash
       id: build-date
       if: ${{ inputs.build-date == 'true' }}
       run: |
