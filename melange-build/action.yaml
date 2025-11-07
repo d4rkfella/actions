@@ -275,20 +275,32 @@ runs:
         DIGEST=$(sha256sum "$ARTIFACT_PATH" | awk '{print "sha256:"$1}')
         echo "ARTIFACT_DIGEST=$DIGEST" >> "$GITHUB_ENV"
 
-    - name: Extract SLSA provenance
+    - name: Extract SLSA predicate from the attestation file
       id: extract_prov
       shell: bash
       run: |
         PROVENANCE_FILEPATH="${{ inputs.output-dir }}/${{ inputs.arch }}/$ARTIFACT_NAME.attest.tar.gz"
-
+        DEST_DIR="${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
+    
         if [[ ! -f "$PROVENANCE_FILEPATH" ]]; then
           echo "❌ No attestation archive found at $PROVENANCE_FILEPATH"
           exit 1
         fi
-
-        mkdir -p "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
-        tar -xzf "$PROVENANCE_FILEPATH" -C "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
-        echo "slsa_provenance_path=${{ inputs.output-dir }}/${{ inputs.arch }}/attestations/$ARTIFACT_NAME.attestation" >> $GITHUB_OUTPUT
+    
+        mkdir -p "$DEST_DIR"
+        tar -xzf "$PROVENANCE_FILEPATH" -C "$DEST_DIR"
+    
+        PROV_FILE=$(find "$DEST_DIR" -type f -name '*.attestation' | head -n1)
+        if [[ -z "$PROV_FILE" ]]; then
+          echo "❌ No .attestation file found after extraction"
+          exit 1
+        fi
+        
+        PREDICATE_PATH="${PROV_FILE}.predicate.json"
+        jq '.predicate' "$PROV_FILE" > "$PREDICATE_PATH"
+    
+        echo "✅ Extracted predicate to: $PREDICATE_PATH"
+        echo "slsa_provenance_path=$PREDICATE_PATH" >> "$GITHUB_OUTPUT"
 
     - name: Create custom attestation
       uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
