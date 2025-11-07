@@ -307,7 +307,7 @@ runs:
       with:
         subject-digest: ${{ env.ARTIFACT_DIGEST }}
         subject-name: >-
-          "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$ARTIFACT_NAME.apk"
+          "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ env.ARTIFACT_NAME }}.apk"
         predicate-type: "https://example.com/attestations/custom-review-v1"
         predicate: |
           {
