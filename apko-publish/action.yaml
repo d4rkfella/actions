@@ -1,14 +1,14 @@
-name: 'Build image with apko'
+name: 'Build and publish image with apko'
 description: |
-  This action build an OCI image with apko, given a config file
-  and tag to use.
+  Publish a built image from a YAML configuration file.
 
 inputs:
   apko-image:
     description: |
-      The digest of the apko image to invoke.
-    default: ghcr.io/wolfi-dev/sdk:latest
-    required: true
+      The full reference of the wolfi SDK container image to invoke, 
+      including registry, repository, and tag or digest.
+      Example: ghcr.io/wolfi-dev/sdk:latest
+    default: ''
 
   config:
     description: |
@@ -17,7 +17,7 @@ inputs:
 
   lockfile:
     description: |
-      The lock file that constraints versions of packages.
+      A path to .lock.json file (e.g. produced by apko lock) that constraints versions of packages to the listed ones (default '' means no additional constraints).
     required: false
     default: ''
 
@@ -43,33 +43,32 @@ inputs:
 
   image_refs:
     description: |
-      The value to pass to --image-refs.
+      Path to file where a list of the published image references will be written.
     default: /tmp/apko.images
 
   keyring-append:
-    description: |
-      The value to pass to --keyring-append.
+    description: "Local path or URL to extra keys to be included in the keyring"
+    required: false
     default: ''
 
   build-repository-append:
-    description: |
-      The value to pass to --build-repository-append.
+    description: "Local path or URL of extra repositories to be included in the build enviroment"
     required: false
     default: ''
 
   repository-append:
-    description: |
-      The value to pass to --repository-append.
+    description: "Local path or URL of extra repositories to be included in the generated image"
+    required: false
     default: ''
 
   package-append:
-    description: |
-      The value to pass to --package-append.
+    description: "Extra packages to include."
+    required: false
     default: ''
 
   archs:
-    description: |
-      The architectures to build for.
+    description: "Architectures to build for (e.g., x86_64,ppc64le,arm64) -- default is all, unless specified in config."
+    required: false
     default: ''
 
   build-options:
@@ -77,22 +76,21 @@ inputs:
       Build options to enable (comma-separated).
     default: ''
 
-  source-date-epoch:
-    description: |
-      The UNIX timestamp to use as the source date when building an image.
-      This is set as the SOURCE_DATE_EPOCH environment variable.
+  build-date:
+    description: "Date used for the timestamps of the files inside the image"
+    required: false
     default: ''
 
   vcs-url:
     description: |
-      Whether to detect and embed the VCS URL (unlike apko we default this to false for reproducible builds).
+      Detect and embed VCS URLs (default true).
     type: boolean
     required: false
-    default: false
+    default: true
 
   debug:
     description: |
-      Enable debug logging.
+      Enable debug logging (default false).
     type: boolean
     required: false
     default: false
@@ -120,8 +118,7 @@ inputs:
     default: ''
 
   annotations:
-    description: |
-      Annotations to add to the image. Format: key1:value1,key2:value2.
+    description: "OCI annotations to add. Separate with colon (key:value)"
     required: false
     default: ''
 
@@ -171,7 +168,7 @@ runs:
         echo "Creating copy of ${{ inputs.automount-src }} at ${{ inputs.automount-dest }}"
         cp -r "${{ inputs.automount-src }}" "${{ inputs.automount-dest }}"
       fi
-      [ -n "${{ inputs.source-date-epoch }}" ] && export SOURCE_DATE_EPOCH='${{ inputs.source-date-epoch }}'
+      [ -n "${{ inputs.build-date }}" ] && export SOURCE_DATE_EPOCH='${{ inputs.build-date }}'
       [ -n "${{ inputs.keyring-append }}" ] && keys="-k ${{ inputs.keyring-append }}"
       [ -n "${{ inputs.build-repository-append }}" ] && build_repos="-b ${{ inputs.build-repository-append }}"
       [ -n "${{ inputs.repository-append }}" ] && repos="-r ${{ inputs.repository-append }}"
