@@ -181,7 +181,7 @@ runs:
         fi
         
         [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
-        [ -n "${{ inputs.namespace }}" ] && args+=(--namespace "${{ inputs.maintainer }}")
+        [ -n "${{ inputs.maintainer }}" ] && args+=(--namespace "${{ inputs.maintainer }}")
         [ -n "${{ inputs.cache-dir }}" ] && args+=(--cache-dir "${{ inputs.cache-dir }}")
         [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dir "${{ inputs.pipeline-dir }}")
         [ -n "${{ inputs.git-commit }}" ] && args+=(--git-commit "${{ inputs.git-commit }}")
