@@ -211,8 +211,6 @@ runs:
   steps:
     - name: Setup Cosign
       uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
-      with:
-        cosign-release: 'v2.5.0'
     
     - name: Setup Crane
       uses: imjasonh/setup-crane@31b88efe9de28ae0ffa220711af4b60be9435f6e # v0.4
