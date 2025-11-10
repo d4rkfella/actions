@@ -138,7 +138,7 @@ inputs:
       In subsequent steps, if automount-src is found, create a copy at this location (inside container)
     default: /work
 
-  source-date-epoch:
+  build-date:
     description: |
       The UNIX timestamp to use as the source date when building an image.
     default: ''
@@ -249,7 +249,7 @@ runs:
         generic-user: ${{ inputs.generic-user }}
         generic-pass: ${{ inputs.generic-pass }}
         annotations: ${{ inputs.annotations }}
-        source-date-epoch: ${{ inputs.source-date-epoch }}
+        build-date: ${{ inputs.build-date }}
         sbom-path: ${{ steps.apko-publish-inputs.outputs.sbom-path }}
 
     - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
