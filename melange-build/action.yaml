@@ -283,6 +283,32 @@ runs:
           jq '.predicate' "$prov_file" > "$pred_path"
           echo "SLSA_PROVENANCE_PATH_${att}=$pred_path" >> "$GITHUB_ENV"
         done
+
+    - name: Create SLSA v1.0 attestations
+      shell: bash
+      run: |
+        OUT="${{ inputs.output-dir }}/${{ inputs.arch }}"
+        ATTEST_DIR="$OUT/attestations"
+    
+        for apk in "$OUT"/*.apk; do
+          base=$(basename "$apk" .apk)
+          predicate="$ATTEST_DIR/${base}.attestation.predicate.json"
+    
+          if [[ ! -f "$predicate" ]]; then
+            echo "❌ Predicate file not found: $predicate"
+            exit 1
+          fi
+    
+          echo "🔐 Creating attestation for: $apk"
+          echo "📄 Predicate: $predicate"
+    
+          cosign attest \
+            --yes \
+            --predicate "$predicate" \
+            --type slsaprovenance \
+            --no-upload true \
+            "$apk"
+        done
     
     - name: Create SLSA v1.0 attestations
       shell: bash
