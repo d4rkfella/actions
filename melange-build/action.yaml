@@ -129,14 +129,10 @@ runs:
         JF_URL: ${{ inputs.artifactory-url }}
         JF_ACCESS_TOKEN: ${{ inputs.artifactory-access-token }}
 
-    - name: Set global variables
+    - name: Set JFROG_CLI_BUILD_NAME
       shell: bash
       run: |
         PKG_NAME=$(yq -r '.package.name' "${{ inputs.config }}")
-        PKG_VERSION=$(yq -r '.package.version' "${{ inputs.config }}")
-        PKG_EPOCH=$(yq -r '.package.epoch // 0' "${{ inputs.config }}")
-
-        echo ARTIFACT_NAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_EPOCH}" >> "$GITHUB_ENV"
         echo "JFROG_CLI_BUILD_NAME=$PKG_NAME" >> "$GITHUB_ENV"
     
     - name: Set build date
@@ -261,52 +257,43 @@ runs:
     
         sudo melange "${args[@]}"
     
-    - name: Upload artifact
+    - name: Upload artifacts
       shell: bash
       run: |
         pushd "${{ inputs.output-dir }}/${{ inputs.arch }}"
-        jf rt upload "$ARTIFACT_NAME.apk" "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$ARTIFACT_NAME.apk"
+        for apk in *.apk; do
+          echo "Uploading $apk..."
+          jf rt upload "$apk" "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$apk"
+        done
+        popd
 
-    - name: Create artifact digest
-      id: create_artifact_digest
+    - name: Extract SLSA predicates
       shell: bash
       run: |
-        ARTIFACT_PATH="${{ inputs.output-dir }}/${{ inputs.arch }}/$ARTIFACT_NAME.apk"
-        DIGEST=$(sha256sum "$ARTIFACT_PATH" | awk '{print "sha256:"$1}')
-        echo "ARTIFACT_DIGEST=$DIGEST" >> "$GITHUB_ENV"
-
-    - name: Extract SLSA predicate from the attestation file
-      id: extract_prov
+        mkdir -p "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
+        for att in "${{ inputs.output-dir }}/${{ inputs.arch }}"/*.attest.tar.gz; do
+          echo "Extracting $att..."
+          tar -xzf "$att" -C "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
+          prov_file=$(find "${{ inputs.output-dir }}/${{ inputs.arch }}/attestations" -type f -name '*.attestation' | head -n1)
+          if [[ -z "$prov_file" ]]; then
+            echo "❌ No .attestation file found for $att"
+            exit 1
+          fi
+          pred_path="${prov_file}.predicate.json"
+          jq '.predicate' "$prov_file" > "$pred_path"
+          echo "SLSA_PROVENANCE_PATH_${att}=$pred_path" >> "$GITHUB_ENV"
+        done
+    
+    - name: Create SLSA v1.0 attestations
       shell: bash
       run: |
-        PROVENANCE_FILEPATH="${{ inputs.output-dir }}/${{ inputs.arch }}/$ARTIFACT_NAME.attest.tar.gz"
-        DEST_DIR="${{ inputs.output-dir }}/${{ inputs.arch }}/attestations"
-    
-        if [[ ! -f "$PROVENANCE_FILEPATH" ]]; then
-          echo "❌ No attestation archive found at $PROVENANCE_FILEPATH"
-          exit 1
-        fi
-    
-        mkdir -p "$DEST_DIR"
-        tar -xzf "$PROVENANCE_FILEPATH" -C "$DEST_DIR"
-    
-        PROV_FILE=$(find "$DEST_DIR" -type f -name '*.attestation' | head -n1)
-        if [[ -z "$PROV_FILE" ]]; then
-          echo "❌ No .attestation file found after extraction"
-          exit 1
-        fi
-        
-        PREDICATE_PATH="${PROV_FILE}.predicate.json"
-        jq '.predicate' "$PROV_FILE" > "$PREDICATE_PATH"
-    
-        echo "✅ Extracted predicate to: $PREDICATE_PATH"
-        echo "slsa_provenance_path=$PREDICATE_PATH" >> "$GITHUB_OUTPUT"
-
-    - name: Create SLSA v1.0 attestation
-      uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 #v3.0.0
-      with:
-        subject-name: >-
-          ${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/${{ env.ARTIFACT_NAME }}.apk
-        subject-digest: ${{ env.ARTIFACT_DIGEST }}
-        predicate-type: https://chainguard.dev/provenance/slsa/v1
-        predicate-path: ${{ steps.extract_prov.outputs.slsa_provenance_path }}
+        for apk in "${{ inputs.output-dir }}/${{ inputs.arch }}"/*.apk; do
+          var_name=$(basename "$apk")
+          predicate="${{ inputs.output-dir }}/${{ inputs.arch }}/attestations/$var_name.attestation.predicate.json"
+          echo "Creating attestation for $apk using $predicate"
+          gh run invoke actions/attest@v3 \
+            --subject-name "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$var_name" \
+            --subject-digest "$(sha256sum "$apk" | awk '{print "sha256:"$1}')" \
+            --predicate-type "https://chainguard.dev/provenance/slsa/v1" \
+            --predicate-path "$predicate"
+        done
