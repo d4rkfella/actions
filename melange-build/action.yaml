@@ -122,7 +122,10 @@ runs:
           echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
           exit 1
         fi
-
+    
+    - name: Install cosign
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+    
     - name: Setup JFrog CLI
       uses: jfrog/setup-jfrog-cli@v4
       env:
