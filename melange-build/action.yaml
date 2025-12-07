@@ -21,18 +21,8 @@ inputs:
     default: x86_64
     required: false
 
-  sign-with-temporary-key:
+  sign-package:
     default: false
-    required: false
-
-  sign-with-key:
-    default: false
-    required: false
-
-  signing-key-path:
-    description: |
-      'The filepath of the signing key file. Only configure this value if signing is set to true.'
-    default: ''
     required: false
 
   output-dir:
@@ -133,18 +123,6 @@ runs:
   using: 'composite'
 
   steps:
-    - name: Validate inputs
-      shell: bash
-      run: |
-        if [[ "${{ inputs.sign-with-key }}" == "true" && "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
-          echo "Error: Both 'sign-with-key' and 'sign-with-temporary-key' cannot be enabled at the same time."
-          exit 1
-        fi
-        if [[ ("${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true") && -z "${{ inputs.signing-key-path }}" ]]; then
-          echo "Error: 'signing-key-path' cannot be empty when 'sign-with-key' or 'sign-with-temporary-key' is enabled."
-          exit 1
-        fi
-    
     - name: Setup JFrog CLI
       uses: jfrog/setup-jfrog-cli@5b06f730cc5a6f55d78b30753f8583454b08c0aa # v4.8.1
       env:
@@ -164,19 +142,29 @@ runs:
       if: ${{ inputs.build-date == 'true' }}
       run: |
         echo "build-date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$GITHUB_OUTPUT"
-
-    - name: Generate temporary signing key
-      if: ${{ inputs.sign-with-temporary-key == 'true' && inputs.signing-key-path != '' }}
-      shell: bash
-      run: |
-        melange keygen "${{ inputs.signing-key-path }}"
+    
 
     - name: Set signing key from secret
-      if: ${{ inputs.sign-with-key == 'true' && inputs.signing-key-path != '' }}
+      id: signing_key
+      if: ${{ inputs.sign-package == 'true' }}
       shell: bash
+      env:
+        MELANGE_PRIVATE_KEY: ${{ secrets.MELANGE_PRIVATE_KEY }}
       run: |
-        echo -n "$MELANGE_PRIVATE_KEY" > "${{ inputs.signing-key-path }}"
-        chmod 400 "${{ inputs.signing-key-path }}"
+        if [[ -z "$MELANGE_PRIVATE_KEY" ]]; then
+          echo "Error: sign-package is enabled but MELANGE_PRIVATE_KEY secret is not set."
+          exit 1
+        fi
+    
+        KEY_PATH="${GITHUB_WORKSPACE}/.melange-keys/private.key"
+    
+        mkdir -p "$(dirname "$KEY_PATH")"
+        chmod 700 "$(dirname "$KEY_PATH")"
+    
+        printf "%s" "$MELANGE_PRIVATE_KEY" > "$KEY_PATH"
+        chmod 400 "$KEY_PATH"
+    
+        echo "signing-key-path=$KEY_PATH" >> "$GITHUB_OUTPUT"
     
     - name: Check for existing repositories in Melange config
       id: check_config_repos
@@ -213,8 +201,8 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
 
-        if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
-          args+=(--signing-key "${{ inputs.signing-key-path }}")
+        if [[ "${{ inputs.sign-package }}" == "true" ]]; then
+          args+=(--signing-key "${{ steps.signing_key.outputs.signing-key-path }}")
         fi
 
         sudo melange "${args[@]}"
@@ -239,8 +227,8 @@ runs:
         args=()
         args+=(rebuild "${{ inputs.output-dir }}"/"${{ inputs.arch }}"/*.apk)
 
-        if [[ "${{ inputs.sign-with-key }}" == "true" || "${{ inputs.sign-with-temporary-key }}" == "true" ]]; then
-          args+=(--signing-key "${{ inputs.signing-key-path }}")
+        if [[ "${{ inputs.sign-package }}" == "true" ]]; then
+          args+=(--signing-key "${{ steps.signing_key.outputs.signing-key-path }}")
         fi
 
         if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
