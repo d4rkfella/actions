@@ -33,7 +33,7 @@ inputs:
   output-dir:
     description: |
       'Directory where package will be written.'
-    default: ${{ github.workspace }}/build-output
+    default: ${{ github.workspace }}/packages
     required: false
 
   tests-repository-append:
