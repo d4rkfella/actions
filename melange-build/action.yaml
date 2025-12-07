@@ -159,7 +159,7 @@ runs:
           exit 1
         fi
     
-        KEY_PATH="${RUNNER_TEMP}/.melange/signing.key"
+        KEY_PATH="${RUNNER_TEMP}/.melange/melange-signing.rsa"
         mkdir -p "$(dirname "$KEY_PATH")"
         chmod 700 "$(dirname "$KEY_PATH")"
     
