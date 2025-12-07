@@ -25,6 +25,11 @@ inputs:
     default: false
     required: false
 
+  signing-key:
+    description: 'Private key for signing packages (pass GitHub secret here)'
+    required: false
+    default: ''
+
   output-dir:
     description: |
       'Directory where packages will be output.'
@@ -148,21 +153,18 @@ runs:
       id: signing_key
       if: ${{ inputs.sign-package == 'true' }}
       shell: bash
-      env:
-        MELANGE_PRIVATE_KEY: ${{ secrets.MELANGE_PRIVATE_KEY }}
       run: |
-        if [[ -z "$MELANGE_PRIVATE_KEY" ]]; then
-          echo "Error: sign-package is enabled but MELANGE_PRIVATE_KEY secret is not set."
+        if [[ -z "${{ inputs.signing-key }}" ]]; then
+          echo "Error: sign-package is enabled but signing-key input is not set."
           exit 1
         fi
     
-        KEY_PATH="${GITHUB_WORKSPACE}/.melange-keys/private.key"
-    
+        KEY_PATH="${{ inputs.signing-key-path }}"
         mkdir -p "$(dirname "$KEY_PATH")"
         chmod 700 "$(dirname "$KEY_PATH")"
     
-        printf "%s" "$MELANGE_PRIVATE_KEY" > "$KEY_PATH"
-        chmod 400 "$KEY_PATH"
+        printf "%s" "${{ inputs.signing-key }}" > "$KEY_PATH"
+        chmod 600 "$KEY_PATH"
     
         echo "signing-key-path=$KEY_PATH" >> "$GITHUB_OUTPUT"
     
