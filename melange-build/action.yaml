@@ -32,8 +32,8 @@ inputs:
 
   output-dir:
     description: |
-      'Directory where packages will be output.'
-    default: ${{ github.workspace }}/packages
+      'Directory where package will be written.'
+    default: ${{ github.workspace }}/build-output
     required: false
 
   tests-repository-append:
@@ -252,9 +252,11 @@ runs:
         args=()
         args+=(test "${{ inputs.config }}" --arch "${{ inputs.arch }}" --test-package-append busybox)
     
-        if [[ -d "${{ inputs.output-dir }}" ]]; then
-          args+=(--repository-append "${{ inputs.output-dir }}")
-          args+=(--keyring-append "${{ inputs.signing-key-path }}.pub")
+        args+=(--repository-append "${{ inputs.output-dir }}")
+
+        if [[ "${{ inputs.sign-package }}" == "true" ]]; then
+          openssl pkey -in "${{ steps.signing_key.outputs.signing-key-path }}" -pubout -out "${{ steps.signing_key.outputs.signing-key-path }}.pub"
+          args+=(--keyring-append "${{ steps.signing_key.outputs.signing-key-path }}.pub")
         fi
     
         [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
