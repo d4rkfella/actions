@@ -163,7 +163,7 @@ runs:
         mkdir -p "$(dirname "$KEY_PATH")"
         chmod 700 "$(dirname "$KEY_PATH")"
     
-        printf "%s" "${{ inputs.signing-key }}" > "$KEY_PATH"
+        echo "${{ inputs.signing-key }}" > "$KEY_PATH"
         chmod 400 "$KEY_PATH"
     
         echo "signing-key-path=$KEY_PATH" >> "$GITHUB_OUTPUT"
