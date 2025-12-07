@@ -254,8 +254,9 @@ runs:
     
         args+=(--repository-append "${{ inputs.output-dir }}")
 
-        if [[ "${{ inputs.sign-package }}" == "true" ]]; then
-          openssl pkey -in "${{ steps.signing_key.outputs.signing-key-path }}" -pubout -out "${{ steps.signing_key.outputs.signing-key-path }}.pub"
+        if [[ "${{ inputs.sign-package }}" == 'true' ]]; then
+          openssl pkey -in "${{ steps.signing_key.outputs.signing-key-path }}" -pubout \
+            -out "${{ steps.signing_key.outputs.signing-key-path }}.pub"
           args+=(--keyring-append "${{ steps.signing_key.outputs.signing-key-path }}.pub")
         fi
     
