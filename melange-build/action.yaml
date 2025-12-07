@@ -154,18 +154,12 @@ runs:
       if: ${{ inputs.sign-package == 'true' }}
       shell: bash
       run: |
-        if [[ -z "${{ inputs.signing-key }}" ]]; then
-          echo "Error: sign-package is enabled but signing-key input is not set."
-          exit 1
-        fi
-    
+        : "${{ inputs.signing-key:?Error: sign-package is enabled but signing-key input is not set}"
         KEY_PATH="${RUNNER_TEMP}/.melange/melange-signing.rsa"
         mkdir -p "$(dirname "$KEY_PATH")"
         chmod 700 "$(dirname "$KEY_PATH")"
-    
         echo "${{ inputs.signing-key }}" > "$KEY_PATH"
         chmod 400 "$KEY_PATH"
-    
         echo "signing-key-path=$KEY_PATH" >> "$GITHUB_OUTPUT"
     
     - name: Check for existing repositories in Melange config
