@@ -114,7 +114,7 @@ inputs:
   artifactory-url:
     required: true
 
-  artifactory-url-path:
+  artifactory-repository-path:
     required: true
   
   artifactory-access-token:
