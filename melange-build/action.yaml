@@ -277,6 +277,6 @@ runs:
         pushd "${{ inputs.output-dir }}/${{ inputs.arch }}"
         for apk in *.apk; do
           echo "Uploading $apk..."
-          jf rt upload "$apk" "${{ inputs.artifactory-url-path }}/${{ inputs.arch }}/$apk"
+          jf rt upload "$apk" "${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/$apk"
         done
         popd
