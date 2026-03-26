@@ -119,7 +119,7 @@ inputs:
 
   jfrog-cli-version:
     required: false
-    default: 2.84.0
+    default: latest
 
 runs:
   using: 'composite'
@@ -127,8 +127,9 @@ runs:
   steps:
     - name: Setup JFrog CLI
       uses: jfrog/setup-jfrog-cli@1641575d87647fb969c0545f0b6a76873e328b7c # v5.0.0
-      env:
+      with:
         version: ${{ inputs.jfrog-cli-version }}
+      env:
         JF_URL: ${{ inputs.artifactory-url }}
         JF_ACCESS_TOKEN: ${{ inputs.artifactory-access-token }}
 
