@@ -213,14 +213,10 @@ runs:
       uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
     
     - name: Setup Crane
-      uses: imjasonh/setup-crane@6da1ae018866400525525ce74ff892880c099987 # v0.5
+      uses: iarekylew00t/crane-installer@65372ffaef057f1714fed388fc3df3ad2c441aef # v4.0.10
 
     - name: Setup QEMU
       uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
-
-    - name: Setup Syft
-      shell: bash
-      run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin -v
 
     - name: Generate dynamic inputs for apko-publish
       shell: bash
