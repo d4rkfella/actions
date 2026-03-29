@@ -33,8 +33,8 @@ inputs:
     description: 'Target architecture for package queries (e.g. x86_64, aarch64)'
     required: false
     default: 'x86_64'
-  cache:
-    description: 'Whether to cache the apk binary and index. Set to false to disable.'
+  cache-binary:
+    description: 'Whether to cache the apk.static binary. Set to false to disable.'
     required: false
     default: 'true'
 
@@ -61,30 +61,21 @@ runs:
       run: |
         INSTALL_DIR=$(envsubst <<< "${input_install_dir}")
         APK_ROOT=$(envsubst <<< "${input_apk_root}")
-        APK_VERSION="${{ inputs.apk-version }}"
-        ARCH="${{ inputs.arch }}"
-        RUNNER_OS="${{ runner.os }}"
 
-        REPO_HASH=$(printf '%s' "${{ inputs.repositories }}" | sha256sum | cut -d' ' -f1)
-        KEY_HASH=$(printf '%s' "${{ inputs.keys }}" | sha256sum | cut -d' ' -f1)
-        INDEX_HASH="${REPO_HASH:0:16}-${KEY_HASH:0:16}"
-
-        echo "install-dir=${INSTALL_DIR}"                                             >> "$GITHUB_OUTPUT"
-        echo "apk-root=${APK_ROOT}"                                                   >> "$GITHUB_OUTPUT"
-        echo "bin-key=${RUNNER_OS}-apk-bin-${APK_VERSION}-${ARCH}"                   >> "$GITHUB_OUTPUT"
-        echo "index-key=${RUNNER_OS}-apk-index-${APK_VERSION}-${ARCH}-${INDEX_HASH}" >> "$GITHUB_OUTPUT"
-        echo "index-restore-key=${RUNNER_OS}-apk-index-${APK_VERSION}-${ARCH}-"      >> "$GITHUB_OUTPUT"
+        echo "install-dir=${INSTALL_DIR}"                                                          >> "$GITHUB_OUTPUT"
+        echo "apk-root=${APK_ROOT}"                                                                >> "$GITHUB_OUTPUT"
+        echo "bin-key=${{ runner.os }}-apk-bin-${{ inputs.apk-version }}-${{ inputs.arch }}"      >> "$GITHUB_OUTPUT"
 
     - name: Restore apk binary cache
       id: restore-bin-cache
-      if: inputs.cache == 'true'
+      if: inputs.cache-binary == 'true'
       uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
       with:
         path: ${{ steps.cache-keys.outputs.install-dir }}/apk.static
         key: ${{ steps.cache-keys.outputs.bin-key }}
 
     - name: Download apk.static binary
-      if: inputs.cache != 'true' || steps.restore-bin-cache.outputs.cache-hit != 'true'
+      if: inputs.cache-binary != 'true' || steps.restore-bin-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
@@ -100,21 +91,11 @@ runs:
         echo "Downloaded: $("${INSTALL_DIR}/apk.static" --version 2>&1 | head -n1)"
 
     - name: Save apk binary cache
-      if: inputs.cache == 'true' && steps.restore-bin-cache.outputs.cache-hit != 'true'
+      if: inputs.cache-binary == 'true' && steps.restore-bin-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
       with:
         path: ${{ steps.cache-keys.outputs.install-dir }}/apk.static
         key: ${{ steps.cache-keys.outputs.bin-key }}
-
-    - name: Restore APK index cache
-      id: restore-index-cache
-      if: inputs.cache == 'true'
-      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-      with:
-        path: ${{ steps.cache-keys.outputs.apk-root }}/var/cache/apk
-        key: ${{ steps.cache-keys.outputs.index-key }}
-        restore-keys: |
-          ${{ steps.cache-keys.outputs.index-restore-key }}
 
     - name: Configure apk root and update index
       id: setup
@@ -153,12 +134,8 @@ runs:
           fi
         done <<< "${input_keys}"
 
-        if [ "${{ steps.restore-index-cache.outputs.cache-hit }}" != "true" ] || [ "${{ inputs.cache }}" != "true" ]; then
-          echo "Updating APK index..."
-          "${APK_BIN}" --root "${APK_ROOT}" --arch "${ARCH}" update
-        else
-          echo "Using cached APK index"
-        fi
+        echo "Updating APK index..."
+        "${APK_BIN}" --root "${APK_ROOT}" --arch "${ARCH}" update
 
         echo "apk-root=${APK_ROOT}" >> "$GITHUB_OUTPUT"
         echo "apk-bin=${APK_BIN}"   >> "$GITHUB_OUTPUT"
@@ -168,10 +145,3 @@ runs:
       env:
         INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
       run: echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
-
-    - name: Save APK index cache
-      if: inputs.cache == 'true' && steps.restore-index-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-      with:
-        path: ${{ steps.cache-keys.outputs.apk-root }}/var/cache/apk
-        key: ${{ steps.cache-keys.outputs.index-key }}
