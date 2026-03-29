@@ -30,9 +30,8 @@ inputs:
 
   target-tag:
     description: |
-      The tag this build will produce upon success.  It will also be used
-      to form a date-based variant for tracking over time.
-    default: rolling
+      The tag this build will produce upon success.
+    default: latest
     required: true
 
   registry:
