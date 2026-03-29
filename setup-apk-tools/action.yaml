@@ -30,7 +30,7 @@ inputs:
     required: false
     default: '$HOME/.apk/root'
   arch:
-    description: 'Target architecture for package queries (e.g. x86_64, aarch64)'
+    description: 'Comma-separated list of target architectures for package queries (e.g. x86_64, aarch64)'
     required: false
     default: 'x86_64'
   cache-binary:
@@ -59,9 +59,9 @@ runs:
         INSTALL_DIR=$(envsubst <<< "${{ inputs.install-dir }}")
         APK_ROOT=$(envsubst <<< "${{ inputs.apk-root }}")
 
-        echo "install-dir=${INSTALL_DIR}"                                                          >> "$GITHUB_OUTPUT"
-        echo "apk-root=${APK_ROOT}"                                                                >> "$GITHUB_OUTPUT"
-        echo "bin-key=${{ runner.os }}-apk-bin-${{ inputs.apk-version }}-${{ inputs.arch }}"      >> "$GITHUB_OUTPUT"
+        echo "install-dir=${INSTALL_DIR}"                                         >> "$GITHUB_OUTPUT"
+        echo "apk-root=${APK_ROOT}"                                               >> "$GITHUB_OUTPUT"
+        echo "bin-key=${{ runner.os }}-apk-bin-${{ inputs.apk-version }}"        >> "$GITHUB_OUTPUT"
 
     - name: Restore apk binary cache
       id: restore-bin-cache
@@ -75,13 +75,22 @@ runs:
       if: inputs.cache-binary != 'true' || steps.restore-bin-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        ARCH="${{ inputs.arch }}"
         VERSION="${{ inputs.apk-version }}"
-        URL="https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v${VERSION}/${ARCH}/apk.static"
         INSTALL_DIR="${{ steps.cache-keys.outputs.install-dir }}"
 
+        case "$(uname -m)" in
+          x86_64)  HOST_ARCH="x86_64" ;;
+          aarch64) HOST_ARCH="aarch64" ;;
+          *)
+            echo "Unsupported host architecture: $(uname -m)"
+            exit 1
+            ;;
+        esac
+
+        URL="https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v${VERSION}/${HOST_ARCH}/apk.static"
+
         mkdir -p "${INSTALL_DIR}"
-        echo "Downloading apk.static v${VERSION} for ${ARCH}..."
+        echo "Downloading apk.static v${VERSION} for ${HOST_ARCH}..."
         curl --retry 3 -fsSL "${URL}" -o "${INSTALL_DIR}/apk.static"
         chmod +x "${INSTALL_DIR}/apk.static"
         echo "Downloaded: $("${INSTALL_DIR}/apk.static" --version 2>&1 | head -n1)"
@@ -99,7 +108,6 @@ runs:
       run: |
         INSTALL_DIR="${{ steps.cache-keys.outputs.install-dir }}"
         APK_ROOT="${{ steps.cache-keys.outputs.apk-root }}"
-        ARCH="${{ inputs.arch }}"
         APK_BIN="${INSTALL_DIR}/apk.static"
         INPUT_REPOSITORIES="${{ inputs.repositories }}"
         INPUT_KEYS="${{ inputs.keys }}"
@@ -129,8 +137,12 @@ runs:
           fi
         done <<< "${INPUT_KEYS}"
 
-        echo "Updating APK index..."
-        "${APK_BIN}" --root "${APK_ROOT}" --arch "${ARCH}" update
+        IFS=',' read -ra ARCHES <<< "${{ inputs.arch }}"
+        for ARCH in "${ARCHES[@]}"; do
+          ARCH=$(echo "$ARCH" | xargs)
+          echo "Updating APK index for ${ARCH}..."
+          "${APK_BIN}" --root "${APK_ROOT}" --arch "${ARCH}" update
+        done
 
         echo "apk-root=${APK_ROOT}" >> "$GITHUB_OUTPUT"
         echo "apk-bin=${APK_BIN}"   >> "$GITHUB_OUTPUT"
