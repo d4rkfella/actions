@@ -55,12 +55,9 @@ runs:
     - name: Compute paths and cache keys
       id: cache-keys
       shell: bash
-      env:
-        input_install_dir: ${{ inputs.install-dir }}
-        input_apk_root: ${{ inputs.apk-root }}
       run: |
-        INSTALL_DIR=$(envsubst <<< "${input_install_dir}")
-        APK_ROOT=$(envsubst <<< "${input_apk_root}")
+        INSTALL_DIR=$(envsubst <<< "${{ inputs.install-dir }}")
+        APK_ROOT=$(envsubst <<< "${{ inputs.apk-root }}")
 
         echo "install-dir=${INSTALL_DIR}"                                                          >> "$GITHUB_OUTPUT"
         echo "apk-root=${APK_ROOT}"                                                                >> "$GITHUB_OUTPUT"
@@ -77,12 +74,11 @@ runs:
     - name: Download apk.static binary
       if: inputs.cache-binary != 'true' || steps.restore-bin-cache.outputs.cache-hit != 'true'
       shell: bash
-      env:
-        INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
       run: |
         ARCH="${{ inputs.arch }}"
         VERSION="${{ inputs.apk-version }}"
         URL="https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v${VERSION}/${ARCH}/apk.static"
+        INSTALL_DIR="${{ steps.cache-keys.outputs.install-dir }}"
 
         mkdir -p "${INSTALL_DIR}"
         echo "Downloading apk.static v${VERSION} for ${ARCH}..."
@@ -100,14 +96,13 @@ runs:
     - name: Configure apk root and update index
       id: setup
       shell: bash
-      env:
-        INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
-        APK_ROOT: ${{ steps.cache-keys.outputs.apk-root }}
-        input_repositories: ${{ inputs.repositories }}
-        input_keys: ${{ inputs.keys }}
       run: |
+        INSTALL_DIR="${{ steps.cache-keys.outputs.install-dir }}"
+        APK_ROOT="${{ steps.cache-keys.outputs.apk-root }}"
         ARCH="${{ inputs.arch }}"
         APK_BIN="${INSTALL_DIR}/apk.static"
+        INPUT_REPOSITORIES="${{ inputs.repositories }}"
+        INPUT_KEYS="${{ inputs.keys }}"
 
         mkdir -p \
           "${APK_ROOT}/etc/apk/keys" \
@@ -118,7 +113,7 @@ runs:
         [ -f "${APK_ROOT}/lib/apk/db/installed" ] || touch "${APK_ROOT}/lib/apk/db/installed"
         [ -f "${APK_ROOT}/etc/apk/world" ]         || touch "${APK_ROOT}/etc/apk/world"
 
-        printf '%s\n' "${input_repositories}" | sed '/^[[:space:]]*$/d' > "${APK_ROOT}/etc/apk/repositories"
+        printf '%s\n' "${INPUT_REPOSITORIES}" | sed '/^[[:space:]]*$/d' > "${APK_ROOT}/etc/apk/repositories"
         echo "Configured repositories:"
         cat "${APK_ROOT}/etc/apk/repositories"
 
@@ -132,7 +127,7 @@ runs:
           else
             echo "Key already present: $(basename "${KEY_URL}")"
           fi
-        done <<< "${input_keys}"
+        done <<< "${INPUT_KEYS}"
 
         echo "Updating APK index..."
         "${APK_BIN}" --root "${APK_ROOT}" --arch "${ARCH}" update
@@ -142,6 +137,4 @@ runs:
 
     - name: Add apk.static to PATH
       shell: bash
-      env:
-        INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
-      run: echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
+      run: echo "${{ steps.cache-keys.outputs.install-dir }}" >> "$GITHUB_PATH"
