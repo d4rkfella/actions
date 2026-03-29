@@ -1,0 +1,177 @@
+name: 'Setup APK Tools'
+description: 'Downloads and configures apk.static with repository indexes and signing keys, with caching support'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  apk-version:
+    description: 'Version of apk-tools static binary to download'
+    required: false
+    default: '3.0.5'
+  repositories:
+    description: 'Newline-separated list of APK repository URLs to configure'
+    required: false
+    default: 'https://packages.wolfi.dev/os'
+  keys:
+    description: |
+      Newline-separated list of signing key URLs to trust.
+      Example:
+        https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+        https://example.com/my-repo.rsa.pub
+    required: false
+    default: 'https://packages.wolfi.dev/os/wolfi-signing.rsa.pub'
+  install-dir:
+    description: 'Where to install the apk.static binary'
+    required: false
+    default: '$HOME/.apk'
+  apk-root:
+    description: 'Root directory for apk database and configuration'
+    required: false
+    default: '$HOME/.apk/root'
+  arch:
+    description: 'Target architecture for package queries (e.g. x86_64, aarch64)'
+    required: false
+    default: 'x86_64'
+  cache:
+    description: 'Whether to cache the apk binary and index. Set to false to disable.'
+    required: false
+    default: 'true'
+
+outputs:
+  apk-root:
+    description: 'Path to the configured apk root directory'
+    value: ${{ steps.setup.outputs.apk-root }}
+  apk-bin:
+    description: 'Path to the apk.static binary'
+    value: ${{ steps.setup.outputs.apk-bin }}
+  cache-hit:
+    description: 'Whether the apk binary was restored from cache'
+    value: ${{ steps.restore-bin-cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute paths and cache keys
+      id: cache-keys
+      shell: bash
+      env:
+        input_install_dir: ${{ inputs.install-dir }}
+        input_apk_root: ${{ inputs.apk-root }}
+      run: |
+        INSTALL_DIR=$(envsubst <<< "${input_install_dir}")
+        APK_ROOT=$(envsubst <<< "${input_apk_root}")
+        APK_VERSION="${{ inputs.apk-version }}"
+        ARCH="${{ inputs.arch }}"
+        RUNNER_OS="${{ runner.os }}"
+
+        REPO_HASH=$(printf '%s' "${{ inputs.repositories }}" | sha256sum | cut -d' ' -f1)
+        KEY_HASH=$(printf '%s' "${{ inputs.keys }}" | sha256sum | cut -d' ' -f1)
+        INDEX_HASH="${REPO_HASH:0:16}-${KEY_HASH:0:16}"
+
+        echo "install-dir=${INSTALL_DIR}"                                             >> "$GITHUB_OUTPUT"
+        echo "apk-root=${APK_ROOT}"                                                   >> "$GITHUB_OUTPUT"
+        echo "bin-key=${RUNNER_OS}-apk-bin-${APK_VERSION}-${ARCH}"                   >> "$GITHUB_OUTPUT"
+        echo "index-key=${RUNNER_OS}-apk-index-${APK_VERSION}-${ARCH}-${INDEX_HASH}" >> "$GITHUB_OUTPUT"
+        echo "index-restore-key=${RUNNER_OS}-apk-index-${APK_VERSION}-${ARCH}-"      >> "$GITHUB_OUTPUT"
+
+    - name: Restore apk binary cache
+      id: restore-bin-cache
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ${{ steps.cache-keys.outputs.install-dir }}/apk.static
+        key: ${{ steps.cache-keys.outputs.bin-key }}
+
+    - name: Download apk.static binary
+      if: inputs.cache != 'true' || steps.restore-bin-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
+      run: |
+        ARCH="${{ inputs.arch }}"
+        VERSION="${{ inputs.apk-version }}"
+        URL="https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v${VERSION}/${ARCH}/apk.static"
+
+        mkdir -p "${INSTALL_DIR}"
+        echo "Downloading apk.static v${VERSION} for ${ARCH}..."
+        curl --retry 3 -fsSL "${URL}" -o "${INSTALL_DIR}/apk.static"
+        chmod +x "${INSTALL_DIR}/apk.static"
+        echo "Downloaded: $("${INSTALL_DIR}/apk.static" --version 2>&1 | head -n1)"
+
+    - name: Save apk binary cache
+      if: inputs.cache == 'true' && steps.restore-bin-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ${{ steps.cache-keys.outputs.install-dir }}/apk.static
+        key: ${{ steps.cache-keys.outputs.bin-key }}
+
+    - name: Restore APK index cache
+      id: restore-index-cache
+      if: inputs.cache == 'true'
+      uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ${{ steps.cache-keys.outputs.apk-root }}/var/cache/apk
+        key: ${{ steps.cache-keys.outputs.index-key }}
+        restore-keys: |
+          ${{ steps.cache-keys.outputs.index-restore-key }}
+
+    - name: Configure apk root and update index
+      id: setup
+      shell: bash
+      env:
+        INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
+        APK_ROOT: ${{ steps.cache-keys.outputs.apk-root }}
+        input_repositories: ${{ inputs.repositories }}
+        input_keys: ${{ inputs.keys }}
+      run: |
+        ARCH="${{ inputs.arch }}"
+        APK_BIN="${INSTALL_DIR}/apk.static"
+
+        mkdir -p \
+          "${APK_ROOT}/etc/apk/keys" \
+          "${APK_ROOT}/etc/apk/protected_paths.d" \
+          "${APK_ROOT}/lib/apk/db" \
+          "${APK_ROOT}/var/cache/apk"
+
+        [ -f "${APK_ROOT}/lib/apk/db/installed" ] || touch "${APK_ROOT}/lib/apk/db/installed"
+        [ -f "${APK_ROOT}/etc/apk/world" ]         || touch "${APK_ROOT}/etc/apk/world"
+
+        printf '%s\n' "${input_repositories}" | sed '/^[[:space:]]*$/d' > "${APK_ROOT}/etc/apk/repositories"
+        echo "Configured repositories:"
+        cat "${APK_ROOT}/etc/apk/repositories"
+
+        while IFS= read -r KEY_URL; do
+          [ -z "${KEY_URL}" ] && continue
+          KEY_URL=$(echo "${KEY_URL}" | xargs)
+          KEY_FILE="${APK_ROOT}/etc/apk/keys/$(basename "${KEY_URL}")"
+          if [ ! -f "${KEY_FILE}" ]; then
+            echo "Fetching signing key: ${KEY_URL}"
+            curl --retry 3 -fsSL "${KEY_URL}" -o "${KEY_FILE}"
+          else
+            echo "Key already present: $(basename "${KEY_URL}")"
+          fi
+        done <<< "${input_keys}"
+
+        if [ "${{ steps.restore-index-cache.outputs.cache-hit }}" != "true" ] || [ "${{ inputs.cache }}" != "true" ]; then
+          echo "Updating APK index..."
+          "${APK_BIN}" --root "${APK_ROOT}" --arch "${ARCH}" update
+        else
+          echo "Using cached APK index"
+        fi
+
+        echo "apk-root=${APK_ROOT}" >> "$GITHUB_OUTPUT"
+        echo "apk-bin=${APK_BIN}"   >> "$GITHUB_OUTPUT"
+
+    - name: Add apk.static to PATH
+      shell: bash
+      env:
+        INSTALL_DIR: ${{ steps.cache-keys.outputs.install-dir }}
+      run: echo "${INSTALL_DIR}" >> "$GITHUB_PATH"
+
+    - name: Save APK index cache
+      if: inputs.cache == 'true' && steps.restore-index-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ${{ steps.cache-keys.outputs.apk-root }}/var/cache/apk
+        key: ${{ steps.cache-keys.outputs.index-key }}
