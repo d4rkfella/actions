@@ -5,9 +5,9 @@ description: |
 inputs:
   apko-image:
     description: |
-      The full reference of the wolfi SDK container image to invoke, 
+      The full reference of the apko container image to invoke, 
       including registry, repository, and tag or digest.
-      Example: ghcr.io/wolfi-dev/sdk:latest
+      Example: cgr.dev/chainguard/apko
     default: ''
 
   config:
@@ -142,8 +142,8 @@ runs:
     run: |
       APKO_IMAGE="${{ inputs.apko-image }}"
       if [[ "${APKO_IMAGE}" == "" ]]; then
-        echo "Warning: using latest wolfi-dev/sdk image since apko-image input was empty string."
-        APKO_IMAGE="ghcr.io/wolfi-dev/sdk:latest"
+        echo "Warning: using latest apko image since apko-image input was empty string."
+        APKO_IMAGE="cgr.dev/chainguard/apko:latest"
       fi
       docker run -i --rm --entrypoint /bin/sh \
         --network host \
