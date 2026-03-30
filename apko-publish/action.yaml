@@ -192,11 +192,6 @@ runs:
     - name: Get digest
       id: get-digest
       shell: bash
-      env:
-        IMAGE_REFS: ${{ inputs.image_refs }}
       run: |
-        {
-          echo "digest<<EOF"
-          cat "$IMAGE_REFS"
-          echo "EOF"
-        } >> "$GITHUB_OUTPUT"
+        INDEX_DIGEST=$(tail -n 1 "${{ inputs.image_refs }}")
+        echo "digest=${INDEX_DIGEST}" >> "$GITHUB_OUTPUT"
