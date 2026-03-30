@@ -195,4 +195,8 @@ runs:
       env:
         IMAGE_REFS: ${{ inputs.image_refs }}
       run: |
-        echo "digest=$(cat "$IMAGE_REFS")" >> "$GITHUB_OUTPUT"
+        {
+          echo "digest<<EOF"
+          cat /tmp/digest
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
