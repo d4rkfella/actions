@@ -5,194 +5,200 @@ description: |
 inputs:
   apko-image:
     description: |
-      The full reference of the apko container image to invoke, 
+      The full reference of the apko container image to invoke,
       including registry, repository, and tag or digest.
-      Example: cgr.dev/chainguard/apko
-    default: ''
+    default: 'cgr.dev/chainguard/apko:latest'
 
   config:
-    description: |
-      The config file to use for building the image.
+    description: The config file to use for building the image.
     default: .apko.yaml
 
   lockfile:
-    description: |
-      A path to .lock.json file (e.g. produced by apko lock) that constraints versions of packages to the listed ones (default '' means no additional constraints).
     required: false
     default: ''
+    description: |
+      A path to .lock.json file that constrains versions of packages.
 
   tag:
-    description: |
-      The tag to use for publishing the image.
+    description: The tag to use for publishing the image.
     required: true
 
   repository_owner:
-    description: |
-      The repository owner's GitHub username.
+    description: The repository owner's GitHub username.
     default: ${{ github.repository_owner }}
 
   repository:
-    description: |
-      The repository name.
+    description: The repository name.
     default: ${{ github.repository }}
 
   token:
-    description: |
-      The repository owner's GitHub token.
+    description: The repository owner's GitHub token.
     default: ${{ github.token }}
 
   image_refs:
-    description: |
-      Path to file where a list of the published image references will be written.
+    description: Path to file where published image references will be written.
     default: /tmp/apko.images
 
   keyring-append:
-    description: "Local path or URL to extra keys to be included in the keyring"
+    description: Local path or URL to extra keys to include in the keyring.
     required: false
     default: ''
 
   build-repository-append:
-    description: "Local path or URL of extra repositories to be included in the build enviroment"
+    description: Local path or URL of extra repositories for the build environment.
     required: false
     default: ''
 
   repository-append:
-    description: "Local path or URL of extra repositories to be included in the generated image"
+    description: Local path or URL of extra repositories for the generated image.
     required: false
     default: ''
 
   package-append:
-    description: "Extra packages to include."
+    description: Extra packages to include.
     required: false
     default: ''
 
   archs:
-    description: "Architectures to build for (e.g., x86_64,ppc64le,arm64) -- default is all, unless specified in config."
+    description: Architectures to build for (e.g., x86_64,ppc64le,arm64).
     required: false
     default: ''
 
   build-options:
-    description: |
-      Build options to enable (comma-separated).
+    description: Build options to enable (comma-separated).
     default: ''
 
   build-date:
-    description: "Date used for the timestamps of the files inside the image"
+    description: Date used for the timestamps of the files inside the image.
     required: false
     default: ''
 
   vcs-url:
-    description: |
-      Detect and embed VCS URLs (default true).
+    description: Detect and embed VCS URLs.
     type: boolean
     required: false
     default: true
 
   debug:
-    description: |
-      Enable debug logging (default false).
+    description: Enable debug logging.
     type: boolean
     required: false
     default: false
 
   automount-src:
-    description: |
-      If this directory is found, create a copy at automount-dest (inside container)
+    description: If this directory is found, create a copy at automount-dest.
     default: ${{ github.workspace }}/.apko-automount
 
   automount-dest:
-    description: |
-      If automount-src is found, create a copy at this location (inside container)
+    description: If automount-src is found, create a copy at this location.
     default: /work
 
   generic-user:
-    description: |
-      Username to login to registry.
+    description: Username to login to registry.
     required: false
     default: ''
 
   generic-pass:
-    description: |
-      Password to login to registry.
+    description: Password to login to registry.
     required: false
     default: ''
 
   annotations:
-    description: "OCI annotations to add. Separate with colon (key:value)"
+    description: OCI annotations to add. Separate with colon (key:value).
     required: false
     default: ''
 
   sbom-path:
-    description: |
-      Path to write the SBOMs.
+    description: Path to write the SBOMs.
     required: false
     default: ''
 
 outputs:
   digest:
-    value: ${{ steps.docker-run.outputs.digest }}
-    description: |
-      The digest of the published container image.
+    value: ${{ steps.get-digest.outputs.digest }}
+    description: The digest of the published container image.
 
 runs:
   using: composite
   steps:
-  - id: docker-run
-    shell: bash
-    run: |
-      APKO_IMAGE="${{ inputs.apko-image }}"
-      if [[ "${APKO_IMAGE}" == "" ]]; then
-        echo "Warning: using latest apko image since apko-image input was empty string."
-        APKO_IMAGE="cgr.dev/chainguard/apko:latest"
-      fi
-      docker run -i --rm --entrypoint /bin/sh \
-        --network host \
-        -v $PWD:${{ github.workspace }} \
-        -v /tmp:/tmp \
-        --workdir ${{ github.workspace }} \
-        -e "GITHUB_ACTOR=${{ inputs.repository_owner }}" \
-        -e "GITHUB_TOKEN=${{ inputs.token }}" \
-        -e "REPOSITORY=${{ inputs.repository }}" \
-        "${APKO_IMAGE}" \
-        -c "$(cat <<"EOF"
-      set -o errexit
-      set -o pipefail
+    - name: Registry login
+      if: inputs.generic-user != '' && inputs.generic-pass != ''
+      shell: bash
+      env:
+        GENERIC_PASS: ${{ inputs.generic-pass }}
+        GENERIC_USER: ${{ inputs.generic-user }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        REGISTRY=$(echo "$TAG" | cut -d'/' -f1)
+        echo "$GENERIC_PASS" | docker login "$REGISTRY" -u "$GENERIC_USER" --password-stdin
 
-      if [[ "${{ inputs.generic-user }}" != "" && "${{ inputs.generic-pass }}" != "" ]]; then
-        echo "${{ inputs.generic-pass }}" | \
-          /usr/bin/apko login -u "${{ inputs.generic-user }}" \
-            --password-stdin "$(echo "${{ inputs.tag }}" | cut -d'/' -f1)"
-      fi
+    - name: Automount
+      if: inputs.automount-src != ''
+      shell: bash
+      env:
+        AUTOMOUNT_SRC: ${{ inputs.automount-src }}
+        AUTOMOUNT_DEST: ${{ inputs.automount-dest }}
+      run: |
+        if [ -d "$AUTOMOUNT_SRC" ]; then
+          echo "Creating copy of $AUTOMOUNT_SRC at $AUTOMOUNT_DEST"
+          cp -r "$AUTOMOUNT_SRC" "$AUTOMOUNT_DEST"
+        fi
 
-      if [ -d "${{ inputs.automount-src }}" ]; then
-        echo "Creating copy of ${{ inputs.automount-src }} at ${{ inputs.automount-dest }}"
-        cp -r "${{ inputs.automount-src }}" "${{ inputs.automount-dest }}"
-      fi
-      [ -n "${{ inputs.build-date }}" ] && export SOURCE_DATE_EPOCH='${{ inputs.build-date }}'
-      [ -n "${{ inputs.keyring-append }}" ] && keys="-k ${{ inputs.keyring-append }}"
-      [ -n "${{ inputs.build-repository-append }}" ] && build_repos="-b ${{ inputs.build-repository-append }}"
-      [ -n "${{ inputs.repository-append }}" ] && repos="-r ${{ inputs.repository-append }}"
-      [ -n "${{ inputs.package-append }}" ] && packages="-p ${{ inputs.package-append }}"
-      [ -n  "${{ inputs.archs }}" ] && archs="--arch ${{ inputs.archs }}"
-      [ -n  "${{ inputs.annotations }}" ] && annotations="--annotations ${{ inputs.annotations }}"
-      build_options=""
-      if [ -n "${{ inputs.build-options }}" ]; then
-        opts="${{ inputs.build-options }}"
-        for opt in ${opts//,/ }; do
-          build_options="${build_options} --build-option ${opt}"
-        done
-      fi
+    - name: Build apko arguments
+      id: build-args
+      shell: bash
+      env:
+        BUILD_DATE: ${{ inputs.build-date }}
+        KEYRING: ${{ inputs.keyring-append }}
+        BUILD_REPO: ${{ inputs.build-repository-append }}
+        REPO: ${{ inputs.repository-append }}
+        PACKAGES: ${{ inputs.package-append }}
+        ARCHS: ${{ inputs.archs }}
+        ANNOTATIONS: ${{ inputs.annotations }}
+        SBOM_PATH: ${{ inputs.sbom-path }}
+        BUILD_OPTIONS: ${{ inputs.build-options }}
+        LOCKFILE: ${{ inputs.lockfile }}
+        VCS_URL: ${{ inputs.vcs-url }}
+        DEBUG: ${{ inputs.debug }}
+        IMAGE_REFS: ${{ inputs.image_refs }}
+        CONFIG: ${{ inputs.config }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        args="publish"
+        args="${args} --vcs=${VCS_URL}"
+        args="${args} --image-refs=${IMAGE_REFS}"
+        args="${args} --lockfile=${LOCKFILE}"
+        [ "$DEBUG"       == "true" ] && args="${args} --log-level debug"
+        [ -n "$BUILD_DATE"         ] && args="${args} --build-date=${BUILD_DATE}"
+        [ -n "$KEYRING"            ] && args="${args} -k ${KEYRING}"
+        [ -n "$BUILD_REPO"         ] && args="${args} -b ${BUILD_REPO}"
+        [ -n "$REPO"               ] && args="${args} -r ${REPO}"
+        [ -n "$PACKAGES"           ] && args="${args} -p ${PACKAGES}"
+        [ -n "$ARCHS"              ] && args="${args} --arch ${ARCHS}"
+        [ -n "$ANNOTATIONS"        ] && args="${args} --annotations ${ANNOTATIONS}"
+        [ -n "$SBOM_PATH"          ] && args="${args} --sbom-path=${SBOM_PATH}"
+        if [ -n "$BUILD_OPTIONS" ]; then
+          for opt in $(echo "$BUILD_OPTIONS" | tr ',' ' '); do
+            args="${args} --build-option ${opt}"
+          done
+        fi
+        args="${args} ${CONFIG} ${TAG}"
+        echo "args=${args}" >> "$GITHUB_OUTPUT"
 
-      sbomPath="--sbom-path=${{ inputs.sbom-path }}"
-      
-      export DIGEST_FILE="/tmp/digest"
-      /usr/bin/apko publish \
-        --vcs=${{ inputs.vcs-url }} \
-        --lockfile=${{ inputs.lockfile }} \
-        ${{ inputs.debug && '--log-level debug' }} \
-        --image-refs="${{ inputs.image_refs }}" ${{ inputs.config }} ${{ inputs.tag }} $keys $build_repos $repos $packages $archs $annotations $build_options $sbomPath | tee ${DIGEST_FILE}
-      echo EXIT CODE: $?
-      EOF
-      )"
+    - name: Run apko publish
+      uses: docker://cgr.dev/chainguard/apko:latest
+      env:
+        SOURCE_DATE_EPOCH: ${{ inputs.build-date }}
+        GITHUB_ACTOR: ${{ inputs.repository_owner }}
+        GITHUB_TOKEN: ${{ inputs.token }}
+        REPOSITORY: ${{ inputs.repository }}
+      with:
+        args: ${{ steps.build-args.outputs.args }}
 
-      echo "digest=$(cat /tmp/digest)" >> $GITHUB_OUTPUT
+    - name: Get digest
+      id: get-digest
+      shell: bash
+      env:
+        IMAGE_REFS: ${{ inputs.image_refs }}
+      run: |
+        echo "digest=$(cat "$IMAGE_REFS")" >> "$GITHUB_OUTPUT"
