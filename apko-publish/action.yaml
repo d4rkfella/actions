@@ -3,12 +3,6 @@ description: |
   Publish a built image from a YAML configuration file.
 
 inputs:
-  apko-image:
-    description: |
-      The full reference of the apko container image to invoke,
-      including registry, repository, and tag or digest.
-    default: 'cgr.dev/chainguard/apko:latest'
-
   config:
     description: The config file to use for building the image.
     default: .apko.yaml
