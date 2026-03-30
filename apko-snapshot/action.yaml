@@ -4,12 +4,6 @@ description: |
   and base tag to use.
 
 inputs:
-  apko-image:
-    description: |
-      The digest of the apko image to invoke.
-    default: cgr.dev/chainguard/apko:latest
-    required: true
-
   config:
     description: |
       The config file to use for building the image.
@@ -227,7 +221,6 @@ runs:
     - uses: d4rkfella/actions/apko-publish@main
       id: apko
       with:
-        apko-image: ${{ inputs.apko-image }}
         config: ${{ inputs.config }}
         lockfile: ${{ inputs.lockfile }}
         tag: ${{ inputs.base-tag }}:${{ inputs.target-tag }}
@@ -254,8 +247,6 @@ runs:
         password: ${{ inputs.token }}
 
     - shell: bash
-      env:
-        COSIGN_EXPERIMENTAL: "true"
       run: |
         cosign sign --yes $(cat ${{ inputs.image_refs }}) \
             --fulcio-url ${{ inputs.FULCIO_URL }}  --rekor-url ${{ inputs.REKOR_URL }} \
@@ -292,8 +283,6 @@ runs:
     - name: Upload SBOMs as attestations
       if: ${{ inputs.sbom-attest == 'true' }}
       shell: bash
-      env:
-        COSIGN_EXPERIMENTAL: "true"
       run: |
         function attest_sbom {
           arch="${1}"
@@ -329,7 +318,6 @@ runs:
       if: ${{ inputs.slsa-attest == 'true' }}
       shell: bash
       env:
-        COSIGN_EXPERIMENTAL: "true"
         GENERATOR_REPOSITORY: slsa-framework/slsa-github-generator
         GENERATOR_RELEASE_TAG: v2.1.0
         GENERATOR_RELEASE_BINARY: slsa-generator-container-linux-amd64
