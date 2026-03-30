@@ -7,7 +7,7 @@ inputs:
   apko-image:
     description: |
       The digest of the apko image to invoke.
-    default: ghcr.io/wolfi-dev/sdk:latest
+    default: cgr.dev/chainguard/apko:latest
     required: true
 
   config:
