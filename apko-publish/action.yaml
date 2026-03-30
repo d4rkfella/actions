@@ -197,6 +197,6 @@ runs:
       run: |
         {
           echo "digest<<EOF"
-          cat /tmp/digest
+          cat "$IMAGE_REFS"
           echo "EOF"
         } >> "$GITHUB_OUTPUT"
