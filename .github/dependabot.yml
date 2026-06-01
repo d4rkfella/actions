@@ -1,14 +1,6 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/apko-publish"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "github-actions"
-    directory: "/apko-snapshot"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "github-actions"
-    directory: "/melange-build"
+    directory: "/"
     schedule:
       interval: "daily"
