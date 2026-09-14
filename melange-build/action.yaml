@@ -200,7 +200,7 @@ runs:
           args+=(--signing-key "${{ steps.signing_key.outputs.signing-key-path }}")
         fi
 
-        sudo melange "${args[@]}"
+        sudo melange "${args[@]}" --runner docker
 
     - name: Check for reproducible build flag
       id: is_reproducible
