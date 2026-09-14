@@ -232,7 +232,7 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
         
-        sudo melange "${args[@]}"
+        melange "${args[@]}"
 
     - name: Fix output path permissions
       shell: bash
@@ -264,7 +264,7 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
     
-        sudo melange "${args[@]}" --runner docker
+        melange "${args[@]}"
     
     - name: Upload artifacts
       shell: bash
