@@ -297,7 +297,7 @@ runs:
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
     
-        melange "${args[@]}"
+        melange "${args[@]}" --runner docker
     
     - name: Upload artifacts
       shell: bash
