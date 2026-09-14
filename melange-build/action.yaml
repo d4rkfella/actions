@@ -130,6 +130,44 @@ runs:
   using: 'composite'
 
   steps:
+    - name: Configure AppArmor profile for bubblewrap
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        sudo tee /etc/apparmor.d/local-bwrap >/dev/null <<'EOF'
+        abi <abi/4.0>,
+        include <tunables/global>
+
+        profile local-bwrap /usr/local/bin/bwrap flags=(unconfined) {
+          userns,
+          # Site-specific additions and overrides. See local/README for details.
+          include if exists <local/bwrap>
+        }
+        EOF
+
+        sudo systemctl reload apparmor
+
+    - name: Validate bubblewrap user namespace support
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if ! bwrap --unshare-user --bind / / true; then
+          echo "::error::failed to verify 'bwrap --unshare-user'"
+          command -v bwrap || :
+          ls /proc/self/ns || echo "no /proc/self/ns"
+
+          kver="$(uname -r)" || echo "uname -r failed"
+          if [ -f "/boot/config-${kver}" ]; then
+            grep CONFIG_USER_NS "/boot/config-${kver}" \
+              || echo "no CONFIG_USER_NS in /boot/config-${kver}"
+          fi
+
+          exit 1
+        fi
+        echo "bubblewrap (bwrap) user namespace support validated successfully."
+
     - name: Setup JFrog CLI
       uses: jfrog/setup-jfrog-cli@deda456d982fc5e9a7a020b63eb0d2968aedd33e # v5.1.0
       with:
@@ -234,11 +272,6 @@ runs:
         
         melange "${args[@]}"
 
-    - name: Fix output path permissions
-      shell: bash
-      run: |
-        sudo chown -R runner:runner ${{ inputs.output-dir }}
-    
     - name: Test package
       shell: bash
       run: |
