@@ -1,23 +1,18 @@
-name: 'Build single package with Melange'
-description: |
-  This action generates a package using Melange. It assumes that
-  the Melange repository is already configured.
+name: Build single package with Melange
+description: Build and test a Melange package, then upload it to an APK registry.
 
 inputs:
   config:
-    description: |
-      'The config file to use for building the package.'
+    description: Config file to use for building the package.
     default: ./melange.yaml
     required: false
 
   config-file-license:
-    description: |
-      'License to use for the melange config itself.'
+    description: License to use for the Melange config itself.
     default: Apache-2.0
 
   arch:
-    description: |
-      'Architecture to build for.'
+    description: Architecture to build for.
     default: x86_64
     required: false
 
@@ -26,109 +21,90 @@ inputs:
     required: false
 
   signing-key:
-    description: 'Private key for signing packages (pass GitHub secret here)'
+    description: Private key for signing packages (pass a GitHub secret here).
     required: false
     default: ''
 
   output-dir:
-    description: |
-      'Directory where package will be written.'
+    description: Directory where the package will be written.
     default: ${{ github.workspace }}/packages
     required: false
 
   tests-repository-append:
-    description: |
-      'A list of paths or URIs of repositories that should be implicitly included in the test environment.'
+    description: Repositories to include in the test environment.
     default: ''
     required: false
 
   repository-append:
-    description: |
-      'A list of paths or URIs of repositories that should be implicitly included in the build environment.'
+    description: Repositories to include in the build environment.
     default: ''
     required: false
 
   tests-keyring-append:
-    description: |
-      'A list of paths or URIs of keys that should be included in the test environment.'
+    description: Keys to include in the test environment.
     default: ''
     required: false
 
   keyring-append:
-    description: |
-      'A list of paths or URIs of keys that should be included in the build environment.'
+    description: Keys to include in the build environment.
     default: ''
     required: false
 
   workspace-dir:
-    description: |
-      'The directory to use as the workspace.'
+    description: Directory to use as the workspace.
     default: ''
     required: false
 
   maintainer:
-    description: |
-      'Namespace string to use in SBOM purls identifying the maintainer of the artifact'
+    description: Namespace for SBOM package URLs.
     default: ''
     required: false
 
   empty-workspace:
-    description: |
-      'Whether to use an empty workspace or not.'
+    description: Whether to use an empty workspace.
     default: false
     required: false
 
   source-dir:
-    description: |
-      'The source directory to use if empty-workspace is false.'
+    description: Source directory to use when empty-workspace is false.
     default: ${{ github.workspace }}
     required: false
 
   cache-dir:
-    description: |
-      'Directory used for cached inputs.'
+    description: Directory used for cached inputs.
     default: ''
     required: false
 
   pipeline-dir:
-    description: |
-      'Directory used for pipelines.'
+    description: Directory used for pipelines.
     default: ${{ github.workspace }}/pipelines
     required: false
 
   git-commit:
-    description: |
-      'Commit hash of the git repository containing the build config file.'
+    description: Commit hash of the repository containing the build config.
     default: ''
     required: false
 
   git-repo-url:
-    description: |
-      'URL of the git repository containing the build config file.'
+    description: URL of the repository containing the build config.
     default: ''
     required: false
 
-  artifactory-url:
+  registry-url:
+    description: Base URL of the APK registry, for example https://packages.example.com.
     required: true
 
-  artifactory-repository-path:
+  registry-repository:
+    description: Repository prefix configured in the registry.
+    default: os
+    required: false
+
+  registry-token:
+    description: API key with deploy permission.
     required: true
-  
-  artifactory-access-token:
-    required: false
-    default: ''
-
-  oidc-provider-name:
-    required: false
-    default: ''
-
-  jfrog-cli-version:
-    required: false
-    default: latest
 
 runs:
-  using: 'composite'
-
+  using: composite
   steps:
     - name: Configure AppArmor profile for bubblewrap
       shell: bash
@@ -157,7 +133,6 @@ runs:
           echo "::error::failed to verify 'bwrap --unshare-user'"
           command -v bwrap || :
           ls /proc/self/ns || echo "no /proc/self/ns"
-
           kver="$(uname -r)" || echo "uname -r failed"
           if [ -f "/boot/config-${kver}" ]; then
             grep CONFIG_USER_NS "/boot/config-${kver}" \
@@ -168,38 +143,25 @@ runs:
         fi
         echo "bubblewrap (bwrap) user namespace support validated successfully."
 
-    - name: Setup JFrog CLI
-      uses: jfrog/setup-jfrog-cli@ae385c7164244e984cd20a58674e5b57f53596d7 # v5.3.4
-      with:
-        version: ${{ inputs.jfrog-cli-version }}
-        oidc-provider-name: ${{ inputs.oidc-provider-name != '' && inputs.oidc-provider-name || '' }}
-      env:
-        JF_URL: ${{ inputs.artifactory-url }}
-        JF_ACCESS_TOKEN: ${{ inputs.artifactory-access-token != '' && inputs.artifactory-access-token || '' }}
-
-    - name: Set JFROG_CLI_BUILD_NAME
-      shell: bash
-      run: |
-        PKG_NAME=$(yq -r '.package.name' "${{ inputs.config }}")
-        echo "JFROG_CLI_BUILD_NAME=$PKG_NAME" >> "$GITHUB_ENV"
-
     - name: Set signing key from secret
       id: signing_key
       if: ${{ inputs.sign-package == 'true' }}
       shell: bash
+      env:
+        SIGNING_KEY: ${{ inputs.signing-key }}
       run: |
-        if [[ -z "${{ inputs.signing-key }}" ]]; then
+        if [[ -z "$SIGNING_KEY" ]]; then
           echo "Error: sign-package is enabled but signing-key input is not set."
           exit 1
         fi
-        
+
         KEY_PATH="${RUNNER_TEMP}/.melange/melange-signing.rsa"
         mkdir -p "$(dirname "$KEY_PATH")"
         chmod 700 "$(dirname "$KEY_PATH")"
-        echo "${{ inputs.signing-key }}" > "$KEY_PATH"
+        printf '%s' "$SIGNING_KEY" > "$KEY_PATH"
         chmod 400 "$KEY_PATH"
         echo "signing-key-path=$KEY_PATH" >> "$GITHUB_OUTPUT"
-    
+
     - name: Check for existing repositories in Melange config
       id: check_config_repos
       shell: bash
@@ -209,7 +171,7 @@ runs:
         else
           echo "has_config_repos=false" >> "$GITHUB_OUTPUT"
         fi
-    
+
     - name: Build package
       shell: bash
       run: |
@@ -220,7 +182,7 @@ runs:
           [ -n "${{ inputs.repository-append }}" ] && args+=(--repository-append "${{ inputs.repository-append }}")
           [ -n "${{ inputs.keyring-append }}" ] && args+=(--keyring-append "${{ inputs.keyring-append }}")
         fi
-        
+
         [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
         [ -n "${{ inputs.maintainer }}" ] && args+=(--namespace "${{ inputs.maintainer }}")
         [ -n "${{ inputs.cache-dir }}" ] && args+=(--cache-dir "${{ inputs.cache-dir }}")
@@ -245,13 +207,13 @@ runs:
       shell: bash
       run: |
         REPRODUCIBLE=$(yq eval '.environment.environment.REPRODUCIBLE' "${{ inputs.config }}")
-    
+
         if [ -z "$REPRODUCIBLE" ] || [ "$REPRODUCIBLE" = "null" ]; then
           REPRODUCIBLE="true"
         fi
 
-        echo "REPRODUCIBLE=$REPRODUCIBLE" >> $GITHUB_ENV
-        echo "reproducible=$REPRODUCIBLE" >> $GITHUB_OUTPUT
+        echo "REPRODUCIBLE=$REPRODUCIBLE" >> "$GITHUB_ENV"
+        echo "reproducible=$REPRODUCIBLE" >> "$GITHUB_OUTPUT"
 
     - name: Rebuild package
       if: steps.is_reproducible.outputs.reproducible == 'true'
@@ -269,7 +231,7 @@ runs:
         else
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
-        
+
         melange "${args[@]}"
 
     - name: Test package
@@ -277,34 +239,61 @@ runs:
       run: |
         args=()
         args+=(test "${{ inputs.config }}" --arch "${{ inputs.arch }}" --test-package-append wolfi-base)
-    
         args+=(--repository-append "${{ inputs.output-dir }}")
 
-        if [[ "${{ inputs.sign-package }}" == 'true' ]]; then
+        if [[ "${{ inputs.sign-package }}" == "true" ]]; then
           openssl pkey -in "${{ steps.signing_key.outputs.signing-key-path }}" -pubout \
             -out "${{ steps.signing_key.outputs.signing-key-path }}.pub"
           args+=(--keyring-append "${{ steps.signing_key.outputs.signing-key-path }}.pub")
         fi
-    
+
         [ -n "${{ inputs.tests-repository-append }}" ] && args+=(--repository-append "${{ inputs.tests-repository-append }}")
         [ -n "${{ inputs.tests-keyring-append }}" ] && args+=(--keyring-append "${{ inputs.tests-keyring-append }}")
         [ -n "${{ inputs.workspace-dir }}" ] && args+=(--workspace-dir "${{ inputs.workspace-dir }}")
         [ -n "${{ inputs.pipeline-dir }}" ] && args+=(--pipeline-dirs "${{ inputs.pipeline-dir }}")
-    
+
         if [[ "${{ inputs.empty-workspace }}" == "true" ]]; then
           args+=(--empty-workspace)
         else
           args+=(--source-dir "${{ inputs.source-dir }}/$(dirname "${{ inputs.config }}")")
         fi
-    
+
         melange "${args[@]}" --runner docker
-    
-    - name: Upload artifacts
+
+    - name: Upload packages to APK registry
       shell: bash
+      env:
+        APK_REGISTRY_URL: ${{ inputs.registry-url }}
+        APK_REGISTRY_REPOSITORY: ${{ inputs.registry-repository }}
+        APK_REGISTRY_TOKEN: ${{ inputs.registry-token }}
+        APK_REGISTRY_ARCH: ${{ inputs.arch }}
+        APK_OUTPUT_DIR: ${{ inputs.output-dir }}
       run: |
-        pushd "${{ inputs.output-dir }}/${{ inputs.arch }}"
-        for apk in *.apk; do
-          echo "Uploading $apk..."
-          jf rt upload "$apk" "${{ inputs.artifactory-repository-path }}/${{ inputs.arch }}/$apk"
+        set -euo pipefail
+
+        registry_url="${APK_REGISTRY_URL%/}"
+        repository="${APK_REGISTRY_REPOSITORY#/}"
+        repository="${repository%/}"
+        apk_dir="${APK_OUTPUT_DIR}/${APK_REGISTRY_ARCH}"
+
+        if [[ -z "$registry_url" || -z "$repository" || -z "$APK_REGISTRY_TOKEN" ]]; then
+          echo "::error::registry-url, registry-repository, and registry-token must be set"
+          exit 1
+        fi
+
+        shopt -s nullglob
+        packages=("$apk_dir"/*.apk)
+        if (( ${#packages[@]} == 0 )); then
+          echo "::error::No APK packages found in $apk_dir"
+          exit 1
+        fi
+
+        for apk in "${packages[@]}"; do
+          filename="${apk##*/}"
+          package_url="${registry_url}/${repository}/${APK_REGISTRY_ARCH}/${filename}"
+          echo "Uploading ${filename} to ${package_url}"
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer ${APK_REGISTRY_TOKEN}" \
+            --upload-file "$apk" \
+            "$package_url"
         done
-        popd
